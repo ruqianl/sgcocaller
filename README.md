@@ -1,0 +1,174 @@
+## sgcocaller: Calling crossovers from single-gamete DNA sequencing reads
+
+Two modules are available in `sgcocaller`, `fmf` and `xo`. `sgcocaller fmf`
+generates the fragment input files for phasing the individual using the 
+gametes' genotypes along the heterozygous SNPs. `sgcocaller xo` calls crossovers
+in each single gamete using a Hidden Markov Model.
+
+`sgcocaller` processes DNA reads from each single gamete in the aligned and 
+sorted BAM file for inferring the haplotypes of single gamete genomes that can 
+later be used for identifying crossovers through finding haplotype shifts (see [comapr](https://github.com/ruqianl/comapr)).
+
+It takes the large bam file which contains all aligned DNA reads from gamete cells and 
+summarizes allele counts for the provided informative SNP markers. While counting
+the alleles, the Viterbi algorithm is executed for finding the haplotype 
+sequence for the list of SNP markers.
+
+![sgcocaller_fig](images/sscocaller_fig.png)
+
+## Hidden Markov Model configuration
+![HMM_fig](images/HMM-sgcocaller.PNG)
+        
+## Inputs
+
+- Bam, sorted and index bam file which contains DNA reads of single gamete cells 
+with `CB` tag, eg. from single-cell preprocessing pipeline (cellranger)
+- VCF, variant call file that contains the list of informative SNPs
+- barcodeFile, the list of cell barcodes of the gamete cells
+
+## Outputs
+
+* *.mtx
+  * sparse matrix with columns corresponding to the list of gamete cell barcodes and rows corresponding to the list of SNP positions in VCF file
+  * {sample}_chr1_altCount.mtx, a sparse mtx with entries representing alternative allele counts 
+  * {sample}_chr1_totalCount.mtx, a sparse mtx with entries representing total allele counts 
+  * {sample}_chr1_vi.mtx, a sparse mtx with entries representing inferred viterbi state (haplotype state) 
+* {sample}_chr1_snpAnnot.txt, the SNP positions and allele 
+* {sample}_chr1_viSegInfo.txt, statistics of viterbi state segments in text file format.  It contains consecutive viterbi states for each chromosome with statistics including, starting SNP position, ending SNP position, the number of SNPs supporting the segment, the log likelihood ratio of the viterbi segment and the inferred hidden state.
+
+
+## Usage
+
+```
+
+Usage:
+      sgcocaller fmf [options] <BAM> <VCF> <barcodeFile> <out_prefix>
+      sgcocaller xo [options] <BAM> <VCF> <barcodeFile> <out_prefix>
+
+Arguments:
+
+  <BAM> the read alignment file with records of single-cell DNA reads
+  
+  <VCF> the variant call file with records of SNPs
+
+  <barcodeFile> the text file containing the list of cell barcodes
+
+  <out_prefix>  the prefix of output files
+
+
+Options:
+  -t --threads <threads>  number of BAM decompression threads [default: 4]
+  --barcodeTag <barcodeTag>  the cell barcode tag in BAM [default: CB]
+  --minMAPQ <mapq>  Minimum MAPQ for read filtering [default: 20]
+  --baseq <baseq>  base quality threshold for a base to be used for counting [default: 13]
+  --chrom <chrom>  the selected chromsome (whole genome if not supplied,separate by comma if multiple chroms)
+  --minDP <minDP>  the minimum DP for a SNP to be included in the output file [default: 1]
+  --maxDP <maxDP>  the maximum DP for a SNP to be included in the output file [default: 5]
+  --maxTotalDP <maxTotalDP>  the maximum DP across all barcodes for a SNP to be included in the output file [default: 25]
+  --minTotalDP <minTotalDP>  the minimum DP across all barcodes for a SNP to be included in the output file [default: 10]
+  --minSNPdepth <minSNPdepth>  the minimum depth of coverage for a SNPs to be includes in generated fragments [default: 2]
+  --thetaREF <thetaREF>  the theta for the binomial distribution conditioning on hidden state being REF [default: 0.1]
+  --thetaALT <thetaALT>  the theta for the binomial distribution conditioning on hidden state being ALT [default: 0.9]
+  --cmPmb <cmPmb>  the average centiMorgan distances per megabases default 0.1 cm per Mb [default: 0.1]
+  -h --help  show help
+
+
+  Examples
+    ./sgcocaller fmf --threads 4 AAAGTAGCACGTCTCT-1.raw.bam AAAGTAGCACGTCTCT-1.raw.bam.dp3.alt.vcf.gz barcodeFile.tsv ./percell/cellfragment.fmf
+    ./sgcocaller xo --threads 4 AAAGTAGCACGTCTCT-1.raw.bam AAAGTAGCACGTCTCT-1.raw.bam.dp3.alt.vcf.gz barcodeFile.tsv ./percell/ccsnp
+
+```
+### Run for a Bam of a single cell (bulk sample)
+
+For cases where the DNA reads do not have a cell barocode tag (CB) and all the DNA reads are from one cell (Bulk sample), `sgcocaller` can
+still be applied:
+
+1, Prepare a bulkBC.txt file in which only one dummy cell barcode "bulk" is listed. It means in the bulkBC.txt file, there is only 
+one row and it has the text "bulk".
+
+2, Apply sgcocaller as above :
+
+```
+    ./sgcocaller xo --threads 10 bulk.bam SNPs.vcf.gz bulkBC.txt ./output/bulksample
+
+```
+
+## Setup/installation
+
+
+### Static builds 
+
+The static bianry can be simply downloaded which works for GNU/Linux type OS: `./src/sgcocaller`
+
+The static build was generated by using docker image docker://svirlyu/sgcocaller_nsb adapted from https://github.com/brentp/hts-nim/blob/master/Dockerfile
+
+```
+/usr/local/bin/nsb -s ./src/sgcocaller.nim -n sgcocaller.nimble -o /mnt/src -- --d:release --threads:on
+```
+
+A static binary build of `sgcocaller` is available as downloadable artifacts at gitlab repo: "https://gitlab.svi.edu.au/biocellgen-public/sgcocaller" or via
+the `Releases` tab
+
+### Install from bioconda
+
+`sgcocaller` is available as a conda package and can be [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/sgcocaller/README.html)
+
+### Using docker
+
+`sgcocaller` is also available in docker image [`svirlyu/sgcocaller`] https://hub.docker.com/r/svirlyu/sgcocaller
+
+It can be executed by 
+
+```
+docker run -it svirlyu/sgcocaller
+
+## execute sgcocaller
+/usr/bin/sgcocaller -h
+
+```
+### Install with nimble
+`sgcocaller` uses `hts-nim`(https://github.com/brentp/hts-nim) that requires the `hts-lib` library. If you are building the `sgcocaller` from
+source, you would need to install `hts-lib`
+
+```
+git clone --recursive https://github.com/samtools/htslib.git
+cd htslib && git checkout 1.10 && autoheader && autoconf && ./configure --enable-libcurl
+
+cd ..
+make -j 4 -C htslib
+export LD_LIBRARY_PATH=$HOME/htslib
+ls -lh $HOME/htslib/*.so
+```
+
+Then, `sgcocaller` can be installed using `nimble`
+
+`nimble install https://gitlab.svi.edu.au/biocellgen-public/sgcocaller.git`
+
+The built package is located at $HOME/.nimble/bin/sgcocaller
+
+
+
+## Downstream analysis in R
+
+The output files from `sgcocaller` can be directly parsed into R for construction of individual genetic maps using the R package `comapr` available from github.com/ruqianl/comapr
+
+A complete analysis workflow can be accessed [here](https://biocellgen-public.svi.edu.au/hinch-single-gamete-DNA-seq-processing/public/Crossover-identification-with-sgcocaller-and-comapr.html).
+
+
+## References
+<a id="1">[1]</a> 
+Hinch, AG. (2019). 
+Factors influencing meiotic recombination revealed by
+              whole-genome sequencing of single gamete 
+Science, 363(6433)
+
+<a id="2">[2]</a> 
+Hinch, AG. (2019). 
+Factors influencing meiotic recombination revealed by
+              whole-genome sequencing of single gamete 
+Science, 363(6433)
+
+Edge, P. (2017).
+HapCUT2: Robust and Accurate Haplotype Assembly for
+                Diverse Sequencing Technologies
+Genome Research, 27 (5): 801–12.
