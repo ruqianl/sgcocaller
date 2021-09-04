@@ -163,11 +163,6 @@ Factors influencing meiotic recombination revealed by
 Science, 363(6433)
 
 <a id="2">[2]</a> 
-Hinch, AG. (2019). 
-Factors influencing meiotic recombination revealed by
-              whole-genome sequencing of single gamete 
-Science, 363(6433)
-
 Edge, P. (2017).
 HapCUT2: Robust and Accurate Haplotype Assembly for
                 Diverse Sequencing Technologies
