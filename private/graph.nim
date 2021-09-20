@@ -16,7 +16,7 @@ type
   SeqSpermViNodes* = seq[SpermViNodes]
 
 
-proc addViNode*(barcodeTable: OrderedTableRef, 
+proc addViNode*(barcodeTable: TableRef, 
                alleleCountTable: Table[string,allele_expr],
                scSpermSeq: var SeqSpermViNodes,
                outFileTotalCountMtx: var FileStream,
@@ -27,7 +27,7 @@ proc addViNode*(barcodeTable: OrderedTableRef,
                snpIndex: int,
                thetaRef: float,
                thetaAlt: float,
-               rec: Variant,
+               rec_pos: int,
                initProb: array,
                cmPmb: float): int = 
   for bc, ac in alleleCountTable.pairs:
@@ -47,7 +47,7 @@ proc addViNode*(barcodeTable: OrderedTableRef,
       currentViNode.pathState[stateRef] = stateN
       currentViNode.pathState[stateAlt] = stateN
       currentViNode.state = stateN
-      currentViNode.pos = int(rec.POS)
+      currentViNode.pos = int(rec_pos)
       currentViNode.cAlt = int(ac.cAlt)
       currentViNode.cRef = int(ac.cRef)
       
@@ -56,8 +56,8 @@ proc addViNode*(barcodeTable: OrderedTableRef,
       scSpermSeq[ithSperm].spermSnpIndexLookUp[scSpermSeq[ithSperm].viNodeseq.len] = snpIndex
     else:
       let preVNode = scSpermSeq[ithSperm].viNodeseq[high(scSpermSeq[ithSperm].viNodeseq)]
-      var ltransProb = math.ln(getTrans(preVNode.pos,int(rec.POS),cmPmb=cmPmb))
-      var lnoTransProb = math.ln(1-getTrans(preVNode.pos,int(rec.POS),cmPmb=cmPmb))
+      var ltransProb = math.ln(getTrans(preVNode.pos,int(rec_pos),cmPmb=cmPmb))
+      var lnoTransProb = math.ln(1-getTrans(preVNode.pos,int(rec_pos),cmPmb=cmPmb))
       var currentViNode = ViNode()
         # ref/alt -> ref
       var refTref = preVNode.pathScore[stateRef] + lnoTransProb
@@ -82,7 +82,7 @@ proc addViNode*(barcodeTable: OrderedTableRef,
       currentViNode.pathScore[stateRef] += emissionArray[stateRef]
       currentViNode.cAlt = int(ac.cAlt)
       currentViNode.cRef = int(ac.cRef)
-      currentViNode.pos = int(rec.POS)
+      currentViNode.pos = int(rec_pos)
       scSpermSeq[ithSperm].viNodeseq.add(currentViNode)
       scSpermSeq[ithSperm].snpIndexLookUp[snpIndex] = scSpermSeq[ithSperm].viNodeseq.len
       scSpermSeq[ithSperm].spermSnpIndexLookUp[scSpermSeq[ithSperm].viNodeseq.len] = snpIndex

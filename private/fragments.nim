@@ -6,7 +6,7 @@ import streams
 # minSnpDepth, this SNP should at least be covered by two cells
 
 proc findGtNodes*(rec:Variant, variantIndex: int, ibam:Bam, maxTotalReads:int, minTotalReads:int, mapq: int,
-                  barcodeTable:OrderedTableRef,
+                  barcodeTable:TableRef,
                   minbsq:int,
                   barcodeTag:string, minCellDp:int, minSnpDepth:int ): Table[string,GtNode] =
 

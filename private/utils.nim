@@ -26,7 +26,7 @@ type
     counter*: int
     node1*: GtNode
     node2*: GtNode
-proc get_base_offset*(position:cint, align: Record): int =
+proc get_base_offset*(position:int, align: Record): int =
   var 
     off = align.start.int
     qoff = 0
@@ -66,17 +66,18 @@ proc getTrans*(pos1:int64,pos2:int64,cmPmb=0.1): float =
   var rec = 1-math.exp(-float(pos2-pos1)*1e-8*cmPmb) # for autosomes 1*cmPbm cM per Mb 
   return rec
                    #   
-proc countAllele*(rec:Variant, ibam:Bam, maxTotalReads:int,
+proc countAllele*(ibam:Bam, maxTotalReads:int,
                   minTotalReads:int,
                   chrom:string, mapq: int,
-                  barcodeTable:OrderedTableRef,minbsq:int,bulkBam:bool,barcodeTag:string): Table[string,allele_expr] =
+                  barcodeTable:TableRef,minbsq:int,bulkBam:bool,barcodeTag:string,startPos:int, stopPos:int,
+                  rec_alt:char, rec_ref:char): Table[string,allele_expr] =
   var alleleCountTable = initTable[string,allele_expr]()
-  var rec_alt:char
+  #var rec_alt:char
   var total_reads = 0
   var base_off: int
   var base: char
-  rec_alt = rec.ALT[0][0]
-  for aln in ibam.query(chrom = chrom,start = rec.POS.cint-1, stop = rec.POS.cint):
+  #rec_alt = rec.ALT[0][0]
+  for aln in ibam.query(chrom = chrom,start = startPos, stop = stopPos):
     var cbt = tag[string](aln, barcodeTag)
     var currentCB: string
     if cbt.isNone:
@@ -89,15 +90,14 @@ proc countAllele*(rec:Variant, ibam:Bam, maxTotalReads:int,
     if aln.flag.unmapped or aln.mapping_quality.cint < mapq or aln.flag.dup: continue
     ## skip unmapped, duplicated, mapq low reads or aln.flag.secondary or aln.flag.supplementary
     ## if not aln.flag.proper_pair: continue
-    if not barcodeTable.hasKey(currentCB): 
-      continue
-    base_off = get_base_offset(position = rec.POS.cint, align = aln) 
+    if not barcodeTable.hasKey(currentCB): continue
+    base_off = get_base_offset(position = stopPos, align = aln) 
     base = aln.base_at(base_off)
     if aln.base_quality_at(base_off).cint < minbsq: 
       continue
     total_reads+=1
     if alleleCountTable.hasKey(currentCB):
-      if aln.base_at(base_off) == rec.REF[0]: 
+      if aln.base_at(base_off) == rec_ref: 
         alleleCountTable[currentCB].inc_count_cref
         continue
       if aln.base_at(base_off) == rec_alt: 
@@ -106,7 +106,7 @@ proc countAllele*(rec:Variant, ibam:Bam, maxTotalReads:int,
     else:
       var new_snp = allele_expr(cref:0,calt:0)
       alleleCountTable[currentCB] = new_snp
-      if aln.base_at(base_off) == rec.REF[0]: 
+      if aln.base_at(base_off) == rec_ref: 
         alleleCountTable[currentCB].inc_count_cref
         continue
       if aln.base_at(base_off) == rec_alt: 
