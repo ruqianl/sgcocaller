@@ -8,8 +8,7 @@ import strutils
 import hts
 import utils
 import streams
-
-import fragments
+import findGtNodes
 
 ## these outputs will be per chromosome
 
@@ -57,8 +56,8 @@ proc getGtMtx(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outGtMtx:FileStream, ou
         outGtMtx.writeLine(join([$writtenVarintIndex, $cellIndex, $geno],sep = " "))
         outTotalCountMtx.writeLine(join([$writtenVarintIndex, $cellIndex, $cellDP],sep = " "))
         outAltCountMtx.writeLine(join([$writtenVarintIndex, $cellIndex, $calt],sep = " "))
-        outSnpAnnot.writeLine(join([$rec.POS, $rec_ref, $rec_alt], sep="\t") )
         nnsize.inc
+      outSnpAnnot.writeLine(join([$rec.POS, $rec_ref, $rec_alt], sep="\t") )
       writtenVarintIndex.inc
     ## write to matrices
           
@@ -101,13 +100,14 @@ while hts_getline(hf, cint(10), addr kstr) > 0:
 discard hf.hts_close()
 
 let s_Chrs = @["chr1"]
+var chrom = "chr1"
 let out_prefix = "test_data/getMtx/"
 echo "generating gtMtx"
 try: 
-  outGtMtx = openFileStream(out_prefix & "_gtMtx.mtx", fmWrite)
-  outSnpAnnot = openFileStream(out_prefix & "_snpAnnot.txt", fmWrite)
-  outTotalCountMtx = openFileStream(out_prefix & "_totalMtx.mtx", fmWrite)
-  outAltCountMtx = openFileStream(out_prefix & "_AltMtx.mtx", fmWrite)
+  outGtMtx = openFileStream(out_prefix & chrom &  "_gtMtx.mtx", fmWrite)
+  outSnpAnnot = openFileStream(out_prefix & chrom &  "_snpAnnot.txt", fmWrite)
+  outTotalCountMtx = openFileStream(out_prefix & chrom &  "_totalMtx.mtx", fmWrite)
+  outAltCountMtx = openFileStream(out_prefix & chrom &  "_AltMtx.mtx", fmWrite)
 except:
   stderr.write getCurrentExceptionMsg()
 
