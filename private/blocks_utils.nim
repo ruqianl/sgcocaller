@@ -39,7 +39,7 @@ type Block_linkage* = ref object
   linkageType_00* :int
   linkageType_01*: int
   switch_posterior_prob*: float
-  switch_confidence*: float
+  linkage_confidence*: float
   switch*: int
 
 
@@ -53,6 +53,7 @@ proc cal_switch_posterior*(error_rate = 0.1, n_blocks:int, n_sw:int): float =
   var ll_01 = error_rate^(n_blocks-n_sw)*(1-error_rate)^n_sw
   var ll_00 = error_rate^(n_sw)*(1-error_rate)^(n_blocks-n_sw)
   return ll_01/(ll_01+ll_00)
+
 proc is_block_header(line_string:string): bool = 
   if line_string.splitWhitespace()[0] == "BLOCK:":
   # .len == 11:

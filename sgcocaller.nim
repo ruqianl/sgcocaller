@@ -25,11 +25,12 @@ proc getfmf(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outfmf:FileStream,maxTota
   var cellFragmentsTable = newTable[string,Fragment]()
 
   echo "generated fragments from " & $barcodeTable.len & " single cells"
-
+  var cellGtNodes: Table[string, GtNode]
   for rec in ivcf.query("*"): 
-    var cellGtNodes = findGtNodes(rec=rec, variantIndex= variantIndex, ibam=ibam, maxTotalReads=maxTotalReads,
-                                  minTotalReads=minTotalReads, mapq = mapq, barcodeTable = barcodeTable, minbsq=minbsq,barcodeTag=barcodeTag,
-                                  minCellDp = mindp, minSnpDepth = minsnpdepth)
+    cellGtNodes = findGtNodes(rec=rec, variantIndex = variantIndex, ibam=ibam, maxTotalReads=maxTotalReads,
+                                  minTotalReads=minTotalReads, mapq = mapq, barcodeTable = barcodeTable,
+                                  minbsq=minbsq,barcodeTag=barcodeTag)
+    cellGtNodes = callNodeGenotype(cellGtNodes,minCellDp = mindp, minSnpDepth = minsnpdepth, p0 = 0.3, p1 = 0.8)
     cellFragmentsTable = updateCellFragment(barcodedNodesTable=cellGtNodes,cellFragmentsTable = cellFragmentsTable, fmf_out = outfmf)              
     variantIndex = variantIndex + 1
   echo "processed " & $(variantIndex) & " variants"
@@ -52,6 +53,7 @@ proc phaseBlocks(fmf_file:string, inputVCF:string, outputVCF:string, block_hapfi
   ## 
   ## What if blocks cannot be linked ? the number of 11(00) == 10(01)
   echo "Total blocks " & $chr_blocks.len
+
   var contig_blocks:seq[int]
   for b_j, bl in chr_blocks:
     echo "block " & $b_j & " len: " & $bl.h0.len
@@ -65,8 +67,6 @@ proc phaseBlocks(fmf_file:string, inputVCF:string, outputVCF:string, block_hapfi
   for bk in blockkseq:
     echo "prevBlock" &  $bk.prevBlock & "nextBlock" &  $bk.nextBlock & " 00 type " & $ $bk.linkageType_00 &  " 01 type " & $bk.linkageType_01 &  " switch posterior prob " & $bk.switch_posterior_prob  & " switch value :" & $bk.switch
   phased_blocks = infer_non_contig_blocks(contig_blocks, blockkseq, chr_blocks, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
-
-  # echo phased_blocks
 
   discard  write_linked_blocks(inputVCF,outputVCF, blocks = chr_blocks, blocks_phase = phased_blocks, threads= threads)
   return 0
@@ -125,7 +125,8 @@ proc sgcocaller(threads:int, ivcf:VCF, barcodeTable:TableRef,
           # if not gt == 0|1 continue
         elif not (ac[0] == 2 and ac[1] == 5): continue
       var alleleCountTable = countAllele(ibam=ibam, chrom=chrom, mapq=mapq, barcodeTable=barcodeTable,minbsq=minbsq,
-                                        maxTotalReads = maxtotal, minTotalReads = mintotal,bulkBam = bulkBam, barcodeTag = barcodeTag, startPos = rec.POS.cint-1, stopPos=rec.POS.cint,rec_alt =  rec_alt, rec_ref = rec_ref)
+                                        maxTotalReads = maxtotal, minTotalReads = mintotal,bulkBam = bulkBam, barcodeTag = barcodeTag,
+                                        startPos = rec.POS.cint-1, stopPos=rec.POS.cint,rec_alt =  rec_alt, rec_ref = rec_ref)
       if alleleCountTable.len==0: continue
 
       ## add to snpAnnoSeq, later write to SNPannot file, which contains SNP.pos, SNP.ref,SNP.alt; The rowAnnotations
@@ -208,7 +209,7 @@ Options:
   --maxDP <maxDP>  the maximum DP for a SNP to be included in the output file [default: 5]
   --maxTotalDP <maxTotalDP>  the maximum DP across all barcodes for a SNP to be included in the output file [default: 25]
   --minTotalDP <minTotalDP>  the minimum DP across all barcodes for a SNP to be included in the output file [default: 10]
-  --minSNPdepth <minSNPdepth>  the minimum depth of coverage for a SNPs to be includes in generated fragments [default: 2]
+  --minSNPdepth <minSNPdepth>  the minimum depth of coverage for a SNPs to be includes in generated fragments [default: 1]
   --thetaREF <thetaREF>  the theta for the binomial distribution conditioning on hidden state being REF [default: 0.1]
   --thetaALT <thetaALT>  the theta for the binomial distribution conditioning on hidden state being ALT [default: 0.9]
   --cmPmb <cmPmb>  the average centiMorgan distances per megabases default 0.1 cm per Mb [default: 0.1]
@@ -242,7 +243,6 @@ Options:
     minsnpdepth:int
     out_vcf,fmf,barcodeFile,bamfile,vcff,hapfile:string
     vcfGtPhased = false
-
   echo $args
   threads = parse_int($args["--threads"])
   barcodeTag = $args["--barcodeTag"]
@@ -312,7 +312,15 @@ Options:
       echo "running for these chromosomes as specified in the header of the provided VCF file " & $s_Chrs
       discard sgcocaller(threads, ivcf, barcodeTable, ibam,
                       out_dir, mapq, minbsq, mintotal, 
-                      maxtotal, mindp, maxdp, thetaREF, thetaALT, cmPmb,s_Chrs,barcodeTag,phased = vcfGtPhased)
+                      maxtotal, mindp, maxdp, thetaREF, thetaALT, cmPmb, s_Chrs,barcodeTag,phased = vcfGtPhased)
+      var outFileTotalCountMtxFile, outFileAltCountMtxFile: string
+      ## sort entries in mtx files 
+      for chrom in s_Chrs:
+        outFileTotalCountMtxFile = out_dir & chrom & "_totalCount.mtx"
+        outFileAltCountMtxFile = out_dir & chrom & "_altCount.mtx"
+        for mtxFile in [outFileTotalCountMtxFile, outFileAltCountMtxFile]:
+          var imtx = readMtx(mtx_file = mtxFile)
+          discard sortWriteMtx(imtx, mtx_file = mtxFile)
     ibam.close()
     ivcf.close()
   if args["phase_blocks"]:

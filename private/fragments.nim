@@ -3,12 +3,12 @@ import strutils
 import hts
 import utils
 import streams
-# minSnpDepth, this SNP should at least be covered by two cells
 
+# minSnpDepth = 2, this SNP should at least be covered by two cells
 proc findGtNodes*(rec:Variant, variantIndex: int, ibam:Bam, maxTotalReads:int, minTotalReads:int, mapq: int,
                   barcodeTable:TableRef,
                   minbsq:int,
-                  barcodeTag:string, minCellDp:int, minSnpDepth:int ): Table[string,GtNode] =
+                  barcodeTag:string ): Table[string,GtNode] =
 
   var barcodedNodesTable = initTable[string,GtNode]()
   var rec_alt:char
@@ -54,34 +54,37 @@ proc findGtNodes*(rec:Variant, variantIndex: int, ibam:Bam, maxTotalReads:int, m
         continue
   if total_reads > maxTotalReads or total_reads < minTotalReads:
     return initTable[string,GtNode]()
+  return barcodedNodesTable  
+
+proc callNodeGenotype*(bcdTable: var Table[string, GtNode], minCellDp: int, minSnpDepth:int ,p0 = 0.3, p1 = 0.8): Table[string, GtNode] = 
   var calt = 0 
   var cellDP = 0
   var delBarcodes:seq[string]
 
-  for cellbarcode in barcodedNodesTable.keys:
-    cellDP = barcodedNodesTable[cellbarcode].alleles.len
+  for cellbarcode in bcdTable.keys:
+    cellDP = bcdTable[cellbarcode].alleles.len
     if cellDP < minCellDp:
       delBarcodes.add(cellbarcode)
       continue
-    calt = barcodedNodesTable[cellbarcode].alleles.count("1")
-    if calt/cellDP < 0.3:
-      barcodedNodesTable[cellbarcode].genotype = 0
-    elif calt/cellDP > 0.8:
-      barcodedNodesTable[cellbarcode].genotype = 1
+    calt = bcdTable[cellbarcode].alleles.count("1")
+    if calt/cellDP < p0:
+      bcdTable[cellbarcode].genotype = gREF
+    elif calt/cellDP > p1:
+      bcdTable[cellbarcode].genotype = gALT
     else:
       delBarcodes.add(cellbarcode)
       continue
   for bc in delBarcodes:
-    barcodedNodesTable.del(bc)
-  if barcodedNodesTable.len < minSnpDepth:
+    bcdTable.del(bc)
+  if bcdTable.len < minSnpDepth:
     return initTable[string,GtNode]() 
-  return barcodedNodesTable  
+  return bcdTable
 
 ## write the .fmf output stream
 proc writeToFMF*(twoNodesFrag: Fragment, fmf_out:FileStream): Fragment =
   if twoNodesFrag.node2.variantIndex - twoNodesFrag.node1.variantIndex == 1:
  #   echo "writting for cell " & twoNodesFrag.cellbarcode & " with 1 block"
-    if $twoNodesFrag.node1.genotype == "" or $twoNodesFrag.node2.genotype == "":
+    if twoNodesFrag.node1.genotype == gUnknown or twoNodesFrag.node2.genotype == gUnknown:
       quit "Genotype unknown when writing out"
     fmf_out.writeLine(join(["1",twoNodesFrag.cellbarcode & "." & $twoNodesFrag.counter, $twoNodesFrag.node1.variantIndex, 
                             $twoNodesFrag.node1.genotype & $twoNodesFrag.node2.genotype,"~~"], sep = " "))
@@ -98,18 +101,8 @@ proc writeToFMF*(twoNodesFrag: Fragment, fmf_out:FileStream): Fragment =
 proc updateCellFragment*(barcodedNodesTable:Table[string,GtNode],
                          cellFragmentsTable:TableRef[string,Fragment],
                          fmf_out:FileStream): TableRef[string,Fragment] = 
-
  # echo "updating for " & $barcodedNodesTable.len
   for cellbarcode in barcodedNodesTable.keys:
-    # cellDP = barcodedNodesTable[cellbarcode].alleles.len
-    # if cellDP < minCellDp: continue
-    # calt = barcodedNodesTable[cellbarcode].alleles.count("1")
-    # if calt/cellDP < 0.3:
-    #   barcodedNodesTable[cellbarcode].genotype = 0
-    # elif calt/cellDP > 0.8:
-    #   barcodedNodesTable[cellbarcode].genotype = 1
-    # else:
-    #   continue
     if cellFragmentsTable.hasKey(cellbarcode):
       if (not cellFragmentsTable[cellbarcode].node2.isNil) or cellFragmentsTable[cellbarcode].node1.isNil :
         quit "Writing fmf went wrong, the second allele shoud be moved to first after getting one fragment"

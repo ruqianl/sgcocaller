@@ -7,10 +7,10 @@ import math
 import sequtils
 import hts
 
-let n_anchor_snps = 9
-let posterior_threshold = 0.99
+let n_anchor_snps = 19
+let posterior_threshold = 0.9999
 let confidence_threshold = 0.95
-let debug = false
+let debug = true
 
 proc match_phase(cell_geno:seq[int], block_h0:seq[int]): int =
   if cell_geno.len != block_h0.len:
@@ -75,6 +75,7 @@ proc find_contig_blocks*(blocks:seq[Block],cellBlockLeftPhaseTable: TableRef[str
   var contig_blocks = newSeq[int]()
   var count_missing =  newSeqWith[blocks.len,0]
   var contig_block_allow_missing = int(ceil(float(cellBlockLeftPhaseTable.len) * 0.1))
+  if debug: echo "contig_block_allow_missing: " & $contig_block_allow_missing
   # for b in 0..high(blocks):
   var left_right_phase: seq[tuple[left:int,right:int]]
   for bc in cellBlockLeftPhaseTable.keys():
@@ -86,12 +87,13 @@ proc find_contig_blocks*(blocks:seq[Block],cellBlockLeftPhaseTable: TableRef[str
   if debug: echo "block missing in X number of cells:" & $count_missing
   for i, c in count_missing:
     if c <= contig_block_allow_missing: contig_blocks.add(i)
+  if contig_blocks.len == 0 :
+    contig_blocks.add(minIndex(count_missing))
   return contig_blocks
 
 ## find linkage of two blocks
-## 
 proc find_linkage*(block1: int, block2: int, cellBlockLeftPhaseTable: TableRef[string, seq[int]],cellBlockRightPhaseTable: TableRef[string, seq[int]]): Block_linkage= 
-  if debug: echo "linking " & $block1 & "and" & $block2
+  if debug: echo "linking " & $block1 & " and " & $block2
   var left_right_phase: seq[tuple[left:int,right:int]]
   var linkString: string
   if not (block1 < block2):
@@ -106,7 +108,8 @@ proc find_linkage*(block1: int, block2: int, cellBlockLeftPhaseTable: TableRef[s
     elif linkString in @["01","10"]:
       blockLinkage.linkageType_01.inc
   blockLinkage.switch_posterior_prob = cal_switch_posterior(error_rate = 0.1, (blockLinkage.linkageType_00 + blockLinkage.linkageType_01), blockLinkage.linkageType_01)
-  blockLinkage.switch_confidence =  log10(blockLinkage.switch_posterior_prob) - log10(1-blockLinkage.switch_posterior_prob)
+  blockLinkage.linkage_confidence = log10(blockLinkage.switch_posterior_prob) - log10(1-blockLinkage.switch_posterior_prob)
+  echo "blockLinkage.linkage_confidence : " & $blockLinkage.linkage_confidence
   return blockLinkage
   
 # contig_blocks, the blocks to build contigs. Rest of the blocks are filled in if can
@@ -115,7 +118,7 @@ proc build_contig*(contig_blocks:seq[int], cellBlockLeftPhaseTable: TableRef[str
   var blockLinkage:Block_linkage
   for b in 0..(contig_blocks.len-2):
     blockLinkage = find_linkage(block1=contig_blocks[b], block2=contig_blocks[b+1],cellBlockLeftPhaseTable,cellBlockRightPhaseTable)
-    if blockLinkage.switch_confidence < 0.0:
+    if blockLinkage.linkage_confidence < 0.0:
       blockLinkage.switch = 0
     else: 
       blockLinkage.switch = 1
@@ -127,12 +130,12 @@ proc infer_block_linkage_to_one_contig_block*(contig_block:int,to_infer_block:in
                                              cellBlockRightPhaseTable: TableRef[string, seq[int]],
                                              at_left: bool):int = 
   if at_left:
-    if debug: echo "linking " & $to_infer_block & "to contig block " & $contig_block & " from left"
+    if debug: echo "linking " & $to_infer_block & " to contig block " & $contig_block & " from left"
     var blockLinkage = Block_linkage(prevBlock : to_infer_block, nextBlock :contig_block, switch : -1) 
     blockLinkage = find_linkage(block1 = to_infer_block, block2 = contig_block, cellBlockLeftPhaseTable,cellBlockRightPhaseTable)
-    if abs(blockLinkage.switch_confidence) < confidence_threshold:
+    if abs(blockLinkage.linkage_confidence) < confidence_threshold:
       return -1
-    elif blockLinkage.switch_confidence > 0:
+    elif blockLinkage.linkage_confidence > 0:
       return 1
     else:
       return 0
@@ -140,9 +143,9 @@ proc infer_block_linkage_to_one_contig_block*(contig_block:int,to_infer_block:in
     if debug: echo "linking " & $to_infer_block & "to contig block " & $contig_block & " from right"
     var blockLinkage = Block_linkage(prevBlock: contig_block, nextBlock : to_infer_block , switch: -1) 
     blockLinkage = find_linkage(block1 = contig_block, block2 = to_infer_block, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
-    if abs(blockLinkage.switch_confidence) < confidence_threshold:
+    if abs(blockLinkage.linkage_confidence) < confidence_threshold:
       return -1
-    elif blockLinkage.switch_confidence > 0:
+    elif blockLinkage.linkage_confidence > 0.0 :
       return 1
     else:
       return 0
@@ -157,29 +160,42 @@ proc infer_non_contig_blocks*(contig_blocks:seq[int], linkedContigs:seq[Block_li
   var blocks_phase = newSeqWith(blocks.len,-1)
   var left_contig_block:int
   var right_contig_block: int 
+  if debug: echo "now try loop blocks_phase len " & $blocks_phase.len
+  if debug: echo "now try loop contig_blocks len contig_blocks.len " & $contig_blocks.len
+
   blocks_phase[contig_blocks[0]] = 0
-  for lc in linkedContigs:
-    if lc.switch == 0:
-      if debug: echo "blocks_phase[lc.nextBlock] " & $blocks_phase[lc.nextBlock]
-      
-      blocks_phase[lc.nextBlock] = blocks_phase[lc.prevBlock] 
-    else:
-      blocks_phase[lc.nextBlock] = (1 xor blocks_phase[lc.prevBlock])  
+  if debug: echo "now try loop linkedContigs error due to len " & $linkedContigs.len
+
+  try:
+    for lc in linkedContigs:
+      if lc.switch == 0:
+        if debug: echo "blocks_phase[lc.nextBlock] " & $blocks_phase[lc.nextBlock]
+        blocks_phase[lc.nextBlock] = blocks_phase[lc.prevBlock] 
+      else:
+        blocks_phase[lc.nextBlock] = (1 xor blocks_phase[lc.prevBlock])  
+  except:
+    if debug: echo "loop linkedContigs error due to len " & $linkedContigs.len
+
   if debug: echo "block contig haplotype : " & $blocks_phase
+  if debug: echo " contig blocks are  : " & $contig_blocks
+  
   for b_j in 0..(blocks.len-1):
     if not (b_j in contig_blocks):
       if b_j < contig_blocks[0]:
         hap_sw = infer_block_linkage_to_one_contig_block(contig_block = contig_blocks[0], to_infer_block = b_j, cellBlockLeftPhaseTable,cellBlockRightPhaseTable, at_left=true)
         if hap_sw == 1:
-          blocks_phase[b_j] = (1 xor contig_blocks[0]) 
+          if debug: echo "hap_sw == 1"
+          blocks_phase[b_j] = (1 xor blocks_phase[contig_blocks[0]]) 
         elif hap_sw == 0:
-          blocks_phase[b_j] = contig_blocks[0] 
+          if debug: echo "hap_sw == 0"
+          blocks_phase[b_j] = blocks_phase[contig_blocks[0]] 
+          if debug: echo "blocks_phase[b_j] " & $blocks_phase[b_j]
       elif b_j > contig_blocks[contig_blocks.len-1]:
         hap_sw = infer_block_linkage_to_one_contig_block(contig_block = contig_blocks[contig_blocks.len-1], to_infer_block = b_j,cellBlockLeftPhaseTable,cellBlockRightPhaseTable,at_left=false)
         if hap_sw == 1:
-          blocks_phase[b_j] = (1 xor contig_blocks[0]) 
+          blocks_phase[b_j] = (1 xor blocks_phase[contig_blocks[contig_blocks.len-1]]) 
         elif hap_sw == 0:
-          blocks_phase[b_j] = contig_blocks[0] 
+          blocks_phase[b_j] =  blocks_phase[contig_blocks[contig_blocks.len-1]] 
       else:
         ## in between two contig blocks
         left_contig_block = b_j
@@ -196,11 +212,21 @@ proc infer_non_contig_blocks*(contig_blocks:seq[int], linkedContigs:seq[Block_li
               blocks_phase[b_j] = blocks_phase[right_contig_block]
             elif hap_sw_left == 0:
               blocks_phase[b_j] = blocks_phase[left_contig_block]
-          elif hap_sw_right == 0 and (hap_sw_left == 1 or hap_sw_left == -1):
+          elif hap_sw_right == 0 and (hap_sw_left in [1,-1]):
               blocks_phase[b_j] = blocks_phase[right_contig_block]
-          elif hap_sw_right == 1 and (hap_sw_left == 0 or hap_sw_left == -1):
+          elif hap_sw_right == 1 and (hap_sw_left in [0,-1]):
               blocks_phase[b_j] = blocks_phase[left_contig_block]
+        elif blocks_phase[left_contig_block] == blocks_phase[right_contig_block]:
+          if (hap_sw_right == -1 and hap_sw_left == 1) or (hap_sw_right == 1 and hap_sw_left == -1) :
+              blocks_phase[b_j] = (1 xor blocks_phase[left_contig_block])
+          elif (hap_sw_right == -1 and hap_sw_left == 0) or (hap_sw_right == 0 and hap_sw_left == -1) :
+              blocks_phase[b_j] = blocks_phase[left_contig_block]
+          elif hap_sw_right == 0 and hap_sw_left == 0:
+              blocks_phase[b_j] = blocks_phase[left_contig_block]
+          elif hap_sw_right == 1 and hap_sw_left == 1:
+              blocks_phase[b_j] =  (1 xor blocks_phase[left_contig_block])
     else: continue 
+    if debug: echo "After infer non contig blocks: " & $blocks_phase
   return blocks_phase 
 
 proc write_linked_blocks*(vcfFile:string, outFile: string, blocks:seq[Block], blocks_phase:seq[int], threads:int):int = 
@@ -233,20 +259,20 @@ proc write_linked_blocks*(vcfFile:string, outFile: string, blocks:seq[Block], bl
         # don't need to flip
         if blocks[current_block].h0[block_pos_i] == 0:
           ## 0|1
-          if debug: echo "block hap0 and this h0 is 0 0|1"
+          #if debug: echo "block hap0 and this h0 is 0 0|1"
           gt_string = @[int32(2),int32(5)]
         else:
           ## 1|0
-          if debug: echo "block hap0 and this h0 is 1 1|0"
+          #if debug: echo "block hap0 and this h0 is 1 1|0"
           gt_string = @[int32(4),int32(3)]
       elif blocks_phase[current_block] == 1:
         if blocks[current_block].h0[block_pos_i] == 0:
           ## 1|0
-          if debug: echo "block hap1 and this h0 is 0 1|0"
+          #if debug: echo "block hap1 and this h0 is 0 1|0"
           gt_string = @[int32(4),int32(3)]
         else:
           ## 0|1
-          if debug: echo "block hap1 and this h0 is 1 0|1"
+          #if debug: echo "block hap1 and this h0 is 1 0|1"
           gt_string = @[int32(2),int32(5)]
       if f.set("GT",gt_string) != Status.OK:
         quit "set GT failed"

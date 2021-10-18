@@ -48,7 +48,7 @@ proc pathTrackBack*(currentSperm: var SpermViNodes,
         leftGap=[math.ln(transProb),math.ln(1-transProb)]
         inferProb+=leftGap[0]
         reverseProb+=leftGap[1]
-        viSegmentInfo.writeLine(join(["ithSperm", $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " "))
+        viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " "))
         transitFlag = true
         cSNP = 1
         rightGap = leftGap
@@ -69,7 +69,7 @@ proc pathTrackBack*(currentSperm: var SpermViNodes,
         leftGap=[math.ln(transProb),math.ln(1-transProb)]
         inferProb += leftGap[0]
         reverseProb += leftGap[1]
-        viSegmentInfo.writeLine(join(["ithSperm", $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "1"],sep = " "))
+        viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "1"],sep = " "))
         transitFlag = true
         cSNP = 1
         rightGap = leftGap
@@ -82,9 +82,9 @@ proc pathTrackBack*(currentSperm: var SpermViNodes,
     ## the first SNP is included in the segment from traced from back
     posStart = currentSperm.viNodeseq[0].pos
     if currentSperm.viNodeseq[0].state == stateRef:
-      viSegmentInfo.writeLine(join(["ithSperm", $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "1"],sep = " "))
+      viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "1"],sep = " "))
     else:
-      viSegmentInfo.writeLine(join(["ithSperm", $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " "))
+      viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " "))
   else:
     ## the first node has different state from the second, the first node has its own segment
     posStart = currentSperm.viNodeseq[0].pos
@@ -95,10 +95,10 @@ proc pathTrackBack*(currentSperm: var SpermViNodes,
     if currentSperm.viNodeseq[0].state == stateRef:
       inferProb = currentEm[stateRef]+math.ln(transProb)
       reverseProb = currentEm[stateAlt]+math.ln(1-transProb)
-      viSegmentInfo.writeLine(join(["ithSperm", $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "1"],sep = " "))
+      viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "1"],sep = " "))
     else:
       inferProb = currentEm[stateAlt]+math.ln(transProb)
       reverseProb = currentEm[stateRef]+math.ln(1-transProb)
-      viSegmentInfo.writeLine(join(["ithSperm", $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " ") )
+      viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " ") )
   
   return 0

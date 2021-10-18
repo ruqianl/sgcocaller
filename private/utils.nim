@@ -2,6 +2,9 @@ from distributions/rmath import dbinom
 import math
 import tables
 import hts
+import algorithm
+import streams
+import strutils
 
 type 
   allele_expr* = ref object
@@ -9,6 +12,8 @@ type
     calt*: int
   ViState* = enum
     stateRef, stateAlt, stateN
+  BinaryGeno* = enum
+    gUnknown, gREF, gALT
   ViNode* = object
     pos*: int
     cRef*: int
@@ -20,12 +25,29 @@ type
     chrom*: string
     variantIndex*: int
     alleles*: string
-    genotype*: int
+    genotype*: BinaryGeno
   Fragment* = ref object
     cellbarcode*: string
     counter*: int
     node1*: GtNode
     node2*: GtNode
+
+type 
+  MtxRow* = tuple
+    rowIndex: int
+    colIndex: int
+    value: int
+type 
+  Mtx* = ref object
+    header*: string
+    dims*: string
+    lines*: seq[MtxRow]
+
+proc `$`*(x: BinaryGeno): string = 
+  if x == gUnknown: return "-1"
+  if x == gREF: return  "0"
+  if x == gALT: return  "1"
+
 proc get_base_offset*(position:int, align: Record): int =
   var 
     off = align.start.int
@@ -115,3 +137,48 @@ proc countAllele*(ibam:Bam, maxTotalReads:int,
   if total_reads > maxTotalReads or total_reads < minTotalReads:
     return initTable[string,allele_expr]()
   return alleleCountTable
+  
+proc readMtx*(mtx_file:string): Mtx = 
+  var mtxFileStream:FileStream
+  try :
+    mtxFileStream = openFileStream(mtx_file, fmRead)
+  except:
+    stderr.write getCurrentExceptionMsg()
+  var sparseMtx =  Mtx()
+  var current_line: string
+#  var entry: MtxRow
+  sparseMtx.header = mtxFileStream.readLine()
+  sparseMtx.dims = mtxFileStream.readLine()
+  while not mtxFileStream.atEnd():
+    current_line = mtxFileStream.readLine()
+    sparseMtx.lines.add((rowIndex: parseInt(current_line.splitWhitespace()[0]),
+                         colIndex: parseInt(current_line.splitWhitespace()[1]),
+                         value: parseInt(current_line.splitWhitespace()[2]) ))
+  mtxFileStream.close()
+
+  return sparseMtx
+# sort by col index
+proc compareMtxRow*(entry1: MtxRow, entry2: MtxRow): int = 
+  if entry1.colIndex < entry2.colIndex: 
+    return -1
+  elif entry1.colIndex == entry2.colIndex: 
+    if entry1.rowIndex <  entry2.rowIndex: 
+      return -1
+    else:
+      return 1
+  elif entry1.colIndex > entry2.colIndex: 
+    return 1
+
+proc sortWriteMtx*(sMtx:var Mtx, mtx_file:string):int = 
+  var mtxFileStream:FileStream
+  try :
+    mtxFileStream = openFileStream(mtx_file, fmWrite)
+  except:
+    stderr.write getCurrentExceptionMsg()
+  var current_line: string
+  sMtx.lines.sort(compareMtxRow)
+  mtxFileStream.writeLine(sMtx.header)
+  mtxFileStream.writeLine(sMtx.dims)
+  for entry in sMtx.lines:
+    mtxFileStream.writeLine(join([$entry.rowIndex, $entry.colIndex, $entry.value],sep = " "))
+  mtxFileStream.close()
