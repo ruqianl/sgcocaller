@@ -5,6 +5,7 @@ import hts
 import algorithm
 import streams
 import strutils
+import sequtils
 
 type 
   allele_expr* = ref object
@@ -70,6 +71,34 @@ proc get_base_offset*(position:int, align: Record): int =
     base_offset = qoff - over-1
     break 
   return base_offset   
+
+
+proc toBinaryGeno*(x: int, format = "12") : BinaryGeno = 
+  if(format == "01"):
+    if x == 1: return gALT
+    if x == 0: return gREF
+    if x == -1: return gUnknown
+    quit "mtx file geno is not 0,1 or -1"
+  else:
+    if x == 1: return gREF
+    if x == 2: return gALT
+    quit "mtx file geno is not 1 or 2"
+
+## cell by SNP by default
+proc readGtMtxToSeq*(mtxFileStream:FileStream, gtMtx:var seq[seq[BinaryGeno]], by_cell = false):int = 
+  var currentEntrySeq:seq[int]
+  var currentLine:seq[string]
+
+  while not mtxFileStream.atEnd():
+    currentLine = mtxFileStream.readLine().splitWhitespace()
+    ## i j 1-based from file
+    currentEntrySeq = map(currentLine, proc(x: string): int = parseInt(x))
+    if by_cell:
+      gtMtx[(currentEntrySeq[0]-1)][(currentEntrySeq[1]-1)] = currentEntrySeq[2].toBinaryGeno
+    else:
+      gtMtx[(currentEntrySeq[1]-1)][(currentEntrySeq[0]-1)] = currentEntrySeq[2].toBinaryGeno
+  return 0
+
 proc add_allele*(g:GtNode, alleleBinGeno:int):string = g.alleles & $alleleBinGeno
 
 proc inc_count_cref*(a:allele_expr) = inc(a.cref)
@@ -175,7 +204,6 @@ proc sortWriteMtx*(sMtx:var Mtx, mtx_file:string):int =
     mtxFileStream = openFileStream(mtx_file, fmWrite)
   except:
     stderr.write getCurrentExceptionMsg()
-  var current_line: string
   sMtx.lines.sort(compareMtxRow)
   mtxFileStream.writeLine(sMtx.header)
   mtxFileStream.writeLine(sMtx.dims)

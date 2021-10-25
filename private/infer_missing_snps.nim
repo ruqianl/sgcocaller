@@ -2,14 +2,12 @@
 
 ## author Ruqian Lyu
 ## rlyu@svi.edu.au
-import find_template_cell
 import sequtils
 import math
-import streams
-import strutils
 import utils
 
 let nAnchorSnps = 10
+
 proc sliceColumn*(gtMtx:seq[seq[BinaryGeno]],colIndex:int): seq[BinaryGeno] = 
   map(gtMtx, proc(x:seq[BinaryGeno]):BinaryGeno = x[colIndex])
 
@@ -43,9 +41,8 @@ proc inferGeno(type00:int, type10:int, error_rate = 0.1,posterior_thresh = 0.98)
       return gALT
   return gUnknown
 # return full sequence of template geno by inferring missing SNPs's genotypes 
-proc inferSnpGeno(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], posterior_thresh = 0.99):seq[BinaryGeno] = 
+proc inferSnpGeno*(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], posterior_thresh = 0.99):seq[BinaryGeno] = 
   var fullGeno = templateGeno
-  let nCells = gtMtx.len
   let nSnps = gtMtx[0].len
   var coexisPos:seq[int]
   var snpLD: seq[float]
@@ -71,7 +68,8 @@ proc inferSnpGeno(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], pos
           if((gtMtx[j][i-offset] != gUnknown) and (fullGeno[i-offset] != gUnknown)):
             coexisPos.add(i-offset)
         offset += 1
-      snpLD = matchTemplateHap(cell_geno = map(coexisPos,proc(x:int): BinaryGeno =  gtMtx[j][x]), temp_geno = map(coexisPos,proc(x:int): BinaryGeno =  fullGeno[x]) )
+      snpLD = matchTemplateHap(cell_geno = map(coexisPos,proc(x:int): BinaryGeno =  gtMtx[j][x]), 
+                               temp_geno = map(coexisPos,proc(x:int): BinaryGeno =  fullGeno[x]) )
       if snpLD[1] > posterior_thresh:
         if snpLD[0] == 1.0:
           if snpiGeno == gREF: ## snpiGeno is 1 or 2 
@@ -87,44 +85,5 @@ proc inferSnpGeno(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], pos
     # echo "type00 " & $type00
     # echo "type10 " & $type10
     fullGeno[i] = inferGeno(type00, type10)  
-    if i > 20:
-      break
   return fullGeno
 
-
-
-var gtMtx:seq[seq[BinaryGeno]]  
-var currentEntry:seq[int]
-var currentEntrySeq:seq[string]
-var gtMtxFileStream:FileStream
-## i, j are 1-based
-let mtxFile = "/mnt/mcfiles/rlyu/Projects/sgcocaller/test_data/WC_CNV_chr1_nonzero.mtx"
-echo mtxFile
-
-try: 
-  gtMtxFileStream = openFileStream(mtx_file, fmRead)
-except:
-  stderr.write getCurrentExceptionMsg()
-# %%MatrixMarket matrix coordinate integer general
-discard gtMtxFileStream.readLine()
-#N, i,j
-currentEntrySeq = gtMtxFileStream.readLine().splitWhitespace()
-currentEntry = map(currentEntrySeq, proc(x: string): int = parseInt(x))
-var nsnps = currentEntry[0]
-echo "nsnps " & $nsnps
-var ncells = currentEntry[1]
-echo "ncells " & $ncells
-
-var totalEntries = currentEntry[2]
-
-echo "totalEntries " & $totalEntries
-
-
-gtMtx = newSeqWith(ncells,newSeq[BinaryGeno](nsnps))
-
-discard readGtMtx(gtMtxFileStream,gtMtx)
-
-var tempcell = selectTemplateCell(gtMtx = gtMtx, nPairs =3)
-var tempcellGeno = gtMtx[tempcell]
-let fullGeno = inferSnpGeno(tempcellGeno, gtMtx)
-echo fullGeno.len

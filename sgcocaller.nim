@@ -9,67 +9,65 @@ import hts
 import tables
 import sequtils
 import private/utils
-import private/fragments
 import math
 import streams
 import private/graph
 import private/findpath
-import private/blocks_utils
-import private/readfmf
-import private/phase_blocks
+import private/genotype_mtx
+import private/sgphase
 
+# proc getfmf(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outfmf:FileStream,maxTotalReads:int,
+#                   minTotalReads:int,  mapq: int,minbsq:int,mindp:int,barcodeTag:string, minsnpdepth:int):int = 
+#   var variantIndex = 1
+#   var cellFragmentsTable = newTable[string,Fragment]()
 
-proc getfmf(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outfmf:FileStream,maxTotalReads:int,
-                  minTotalReads:int,  mapq: int,minbsq:int,mindp:int,barcodeTag:string, minsnpdepth:int):int = 
-  var variantIndex = 1
-  var cellFragmentsTable = newTable[string,Fragment]()
+#   echo "generated fragments from " & $barcodeTable.len & " single cells"
+#   var cellGtNodes: Table[string, GtNode]
+#   for rec in ivcf.query("*"): 
+#     cellGtNodes = findGtNodes(rec=rec, variantIndex = variantIndex, ibam=ibam, maxTotalReads=maxTotalReads,
+#                                   minTotalReads=minTotalReads, mapq = mapq, barcodeTable = barcodeTable,
+#                                   minbsq=minbsq,barcodeTag=barcodeTag)
+#     cellGtNodes = callNodeGenotype(cellGtNodes,minCellDp = mindp, minSnpDepth = minsnpdepth, p0 = 0.3, p1 = 0.8)
+#     cellFragmentsTable = updateCellFragment(barcodedNodesTable=cellGtNodes,cellFragmentsTable = cellFragmentsTable, fmf_out = outfmf)              
+#     variantIndex = variantIndex + 1
+#   echo "processed " & $(variantIndex) & " variants"
+#   return 0
 
-  echo "generated fragments from " & $barcodeTable.len & " single cells"
-  var cellGtNodes: Table[string, GtNode]
-  for rec in ivcf.query("*"): 
-    cellGtNodes = findGtNodes(rec=rec, variantIndex = variantIndex, ibam=ibam, maxTotalReads=maxTotalReads,
-                                  minTotalReads=minTotalReads, mapq = mapq, barcodeTable = barcodeTable,
-                                  minbsq=minbsq,barcodeTag=barcodeTag)
-    cellGtNodes = callNodeGenotype(cellGtNodes,minCellDp = mindp, minSnpDepth = minsnpdepth, p0 = 0.3, p1 = 0.8)
-    cellFragmentsTable = updateCellFragment(barcodedNodesTable=cellGtNodes,cellFragmentsTable = cellFragmentsTable, fmf_out = outfmf)              
-    variantIndex = variantIndex + 1
-  echo "processed " & $(variantIndex) & " variants"
-  return 0
-proc phaseBlocks(fmf_file:string, inputVCF:string, outputVCF:string, block_hapfile:string, threads:int):int =
-  var cellGenoTable: TableRef[string,TableRef[string,int]]
-  var cellBlockLeftPhaseTable,cellBlockRightPhaseTable :TableRef[string, seq[int]]
-  var chr_blocks:seq[Block]
-  var blockkseq:seq[Block_linkage]
-  var phased_blocks: seq[int]
-  echo "Phasing for hapfile " & block_hapfile
-  cellGenoTable = newTable[string,TableRef[string,int]]()
-  discard readFmf(fmf_file,cellGenoTable)
-  chr_blocks = read_blocks(block_hapfile)
-  cellBlockLeftPhaseTable = newTable[string, seq[int]]()
-  cellBlockRightPhaseTable = newTable[string, seq[int]]()
-  ## blocks at the ends with 20 SNPs or fewer, removed?
-  ## blocks not at the ends with 20SNPs or fewer are not used for linking blocks but if their linkage with pre block and post-block is consistent, 
-  ## these short blocks' haplotypes are retained. 
-  ## 
-  ## What if blocks cannot be linked ? the number of 11(00) == 10(01)
-  echo "Total blocks " & $chr_blocks.len
+# proc phaseBlocks(fmf_file:string, inputVCF:string, outputVCF:string, block_hapfile:string, threads:int):int =
+#   var cellGenoTable: TableRef[string,TableRef[string,int]]
+#   var cellBlockLeftPhaseTable,cellBlockRightPhaseTable :TableRef[string, seq[int]]
+#   var chr_blocks:seq[Block]
+#   var blockkseq:seq[Block_linkage]
+#   var phased_blocks: seq[int]
+#   echo "Phasing for hapfile " & block_hapfile
+#   cellGenoTable = newTable[string,TableRef[string,int]]()
+#   discard readFmf(fmf_file,cellGenoTable)
+#   chr_blocks = read_blocks(block_hapfile)
+#   cellBlockLeftPhaseTable = newTable[string, seq[int]]()
+#   cellBlockRightPhaseTable = newTable[string, seq[int]]()
+#   ## blocks at the ends with 20 SNPs or fewer, removed?
+#   ## blocks not at the ends with 20SNPs or fewer are not used for linking blocks but if their linkage with pre block and post-block is consistent, 
+#   ## these short blocks' haplotypes are retained. 
+#   ## 
+#   ## What if blocks cannot be linked ? the number of 11(00) == 10(01)
+#   echo "Total blocks " & $chr_blocks.len
 
-  var contig_blocks:seq[int]
-  for b_j, bl in chr_blocks:
-    echo "block " & $b_j & " len: " & $bl.h0.len
-    # echo "last 5" & $bl.h0[(high(bl.h0)-5)..high(bl.h0)]
-    # echo "first 5" & $bl.h0[0..5]
-    discard block_phase_in_cells(cellGenoTable, bl.snpPos, bl.h0, true, cellBlockLeftPhaseTable)
-    discard block_phase_in_cells(cellGenoTable, bl.snpPos, bl.h0, false, cellBlockRightPhaseTable)
-    contig_blocks = find_contig_blocks(chr_blocks, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
-  # echo "blocks for contigs" & $contig_blocks
-  blockkseq = build_contig(contig_blocks = contig_blocks, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
-  for bk in blockkseq:
-    echo "prevBlock" &  $bk.prevBlock & "nextBlock" &  $bk.nextBlock & " 00 type " & $ $bk.linkageType_00 &  " 01 type " & $bk.linkageType_01 &  " switch posterior prob " & $bk.switch_posterior_prob  & " switch value :" & $bk.switch
-  phased_blocks = infer_non_contig_blocks(contig_blocks, blockkseq, chr_blocks, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
+#   var contig_blocks:seq[int]
+#   for b_j, bl in chr_blocks:
+#     echo "block " & $b_j & " len: " & $bl.h0.len
+#     # echo "last 5" & $bl.h0[(high(bl.h0)-5)..high(bl.h0)]
+#     # echo "first 5" & $bl.h0[0..5]
+#     discard block_phase_in_cells(cellGenoTable, bl.snpPos, bl.h0, true, cellBlockLeftPhaseTable)
+#     discard block_phase_in_cells(cellGenoTable, bl.snpPos, bl.h0, false, cellBlockRightPhaseTable)
+#     contig_blocks = find_contig_blocks(chr_blocks, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
+#   # echo "blocks for contigs" & $contig_blocks
+#   blockkseq = build_contig(contig_blocks = contig_blocks, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
+#   for bk in blockkseq:
+#     echo "prevBlock" &  $bk.prevBlock & "nextBlock" &  $bk.nextBlock & " 00 type " & $ $bk.linkageType_00 &  " 01 type " & $bk.linkageType_01 &  " switch posterior prob " & $bk.switch_posterior_prob  & " switch value :" & $bk.switch
+#   phased_blocks = infer_non_contig_blocks(contig_blocks, blockkseq, chr_blocks, cellBlockLeftPhaseTable, cellBlockRightPhaseTable)
 
-  discard  write_linked_blocks(inputVCF,outputVCF, blocks = chr_blocks, blocks_phase = phased_blocks, threads= threads)
-  return 0
+#   discard  write_linked_blocks(inputVCF,outputVCF, blocks = chr_blocks, blocks_phase = phased_blocks, threads= threads)
+#   return 0
 proc sgcocaller(threads:int, ivcf:VCF, barcodeTable:TableRef,
                 ibam:Bam, out_dir:string, mapq:int, 
                 minbsq:int, mintotal:int, maxtotal:int, mindp:int, maxdp:int, 
@@ -179,10 +177,13 @@ when(isMainModule):
   $version
 
   Usage:
-      sgcocaller fmf [options] <BAM> <VCF> <barcodeFile> <out_prefix>
+      sgcocaller gtMtx [options] <BAM> <VCF> <barcodeFile> <out_prefix>
+      sgcocaller phase [options] <gtMtxFile> <phaseOutputDir>
+      sgcocaller swphase [options] <gtMtxFile> <phaseSnpAnnotFile>
+      sgcocaller sxo [options] <phaseOutputDir> <out_prefix>
       sgcocaller xo [options] <BAM> <VCF> <barcodeFile> <out_prefix>
-      sgcocaller phase_blocks [options] <VCF> <fmf> <hapfile> <out_vcf>
       
+
 
 Arguments:
 
@@ -218,9 +219,10 @@ Options:
 
 
   Examples
-      ./sgcocaller fmf --threads 4 AAAGTAGCACGTCTCT-1.raw.bam AAAGTAGCACGTCTCT-1.raw.bam.dp3.alt.vcf.gz barcodeFile.tsv ./percell/cellfragment.fmf
+      ./sgcocaller gtMtx --threads 4 AAAGTAGCACGTCTCT-1.raw.bam AAAGTAGCACGTCTCT-1.raw.bam.dp3.alt.vcf.gz barcodeFile.tsv ./percell/cellfragment.fmf
+      ./sgcocaller phase gtMtxFile phaseOutputDir
       ./sgcocaller xo --threads 4 AAAGTAGCACGTCTCT-1.raw.bam AAAGTAGCACGTCTCT-1.raw.bam.dp3.alt.vcf.gz barcodeFile.tsv ./percell/ccsnp
-      ./sgcocaller phase_blocks --threads 4 AAAGTAGCACGTCTCT-1.raw.bam.dp3.alt.vcf.gz ./percell/cellfragment.fmf ./percell/ccsnp/linkedBlocks.vcf.gz
+      ./sgcocaller sxo phaseOutputDir barcodeFile.tsv ./percell/ccsnp
 
 """ % ["version", version])
 
@@ -241,7 +243,7 @@ Options:
     cmPmb:float
     barcodeTag="CB"
     minsnpdepth:int
-    out_vcf,fmf,barcodeFile,bamfile,vcff,hapfile:string
+    barcodeFile,bamfile,vcff:string
     vcfGtPhased = false
   echo $args
   threads = parse_int($args["--threads"])
@@ -258,7 +260,7 @@ Options:
   cmPmb = parse_float($args["--cmPmb"])
   vcfGtPhased = parse_bool($args["--phased"])
   
-  if args["fmf"] or args["xo"]:
+  if args["gtMtx"] or args["xo"]:
     var 
       ibam:Bam
       ivcf:VCF
@@ -266,13 +268,12 @@ Options:
     bamfile = $args["<BAM>"]
     barcodeFile = $args["<barcodeFile>"]
     out_dir = $args["<out_prefix>"]
+    if (out_dir[^1] != '_') and (out_dir[^1] != '/') : out_dir = out_dir & "_"
     vcff = $args["<VCF>"]
-
     if not open(ibam, bamfile, threads=threads, index = true):
         quit "couldn't open input bam"
     if not open(ivcf, vcff, threads=threads):
         quit "couldn't open: vcf file"
-
     if($args["--chrom"] != "nil"):
       selectedChrs = $args["--chrom"]
       s_Chrs = selectedChrs.split(',')
@@ -280,9 +281,7 @@ Options:
       ## find all chroms from headers of vcf file (Contigs)
       let contigs = ivcf.contigs 
       s_Chrs = map(contigs, proc(x: Contig): string = x.name)
-
     var hf = hts.hts_open(cstring(barcodeFile), "r")
-    #### TODO : Table size
     var barcodeTable =  newTable[string,int](initialSize = 1024)
     var kstr: hts.kstring_t
     kstr.l = 0
@@ -291,30 +290,43 @@ Options:
     var ithSperm = 0
     ## initiate the table with CB as keys, allele counts (ref object) as elements
     while hts_getline(hf, cint(10), addr kstr) > 0:
-      if $kstr.s[0] == "#":
-        continue
+      if $kstr.s[0] == "#": continue
       var v = $kstr.s
       discard barcodeTable.hasKeyOrPut(v, ithSperm)
       ithSperm.inc
     discard hf.hts_close()
-    if args["fmf"]:
-      echo "generating fragment file to " & out_dir
-      var outfmf:FileStream
-      try: 
-        outfmf = openFileStream(out_dir, fmWrite)
-      except:
-        stderr.write getCurrentExceptionMsg()
-      discard getfmf(ibam = ibam, ivcf = ivcf, barcodeTable = barcodeTable, outfmf = outfmf, maxTotalReads = maxtotal,
-                    minTotalReads = mintotal, mapq = mapq, minbsq =minbsq, mindp = mindp, barcodeTag = barcodeTag,minsnpdepth=minsnpdepth)
-      close(outfmf)
-    if args["xo"]:
-      echo "running crossover calling \n"
-      echo "running for these chromosomes as specified in the header of the provided VCF file " & $s_Chrs
+    if args["gtMtx"]:
+      var outGtMtxFile, outTotalCountMtxFile,outAltCountMtxFile : string
+      var outGtMtx, outSnpAnnot, outTotalCountMtx, outAltCountMtx:FileStream
+      for chrom in s_Chrs:
+        echo "generating genotype sparse matrix file to " & out_dir & "for chr " & chrom
+        outGtMtxFile = out_dir & chrom & "_gtMtx.mtx"
+        outTotalCountMtxFile = out_dir & chrom &  "_totalMtx.mtx"
+        outAltCountMtxFile = out_dir & chrom &  "_altMtx.mtx"
+        try: 
+          outGtMtx = openFileStream(outGtMtxFile, fmWrite)
+          outSnpAnnot = openFileStream(out_dir & chrom &  "_snpAnnot.txt", fmWrite)
+          outTotalCountMtx = openFileStream(outTotalCountMtxFile, fmWrite)
+          outAltCountMtx = openFileStream(outAltCountMtxFile, fmWrite)
+        except:
+          stderr.write getCurrentExceptionMsg()
+
+        discard getGtMtx(ibam = ibam, ivcf = ivcf, barcodeTable = barcodeTable, outGtMtx = outGtMtx, 
+                         outTotalCountMtx = outTotalCountMtx ,outAltCountMtx = outAltCountMtx,
+                         outSnpAnnot = outSnpAnnot, maxTotalReads = maxtotal,
+                         minTotalReads = mintotal, mapq = mapq, minbsq = minbsq, minCellDp = mindp,maxCellDp =maxdp,
+                         barcodeTag = barcodeTag, minsnpdepth=minsnpdepth)                    
+        for mtxFile in [outGtMtxFile, outTotalCountMtxFile,outAltCountMtxFile]:
+          var imtx = readMtx(mtx_file = mtxFile)
+          discard sortWriteMtx(imtx, mtx_file = mtxFile)      
+    elif args["xo"]:
+      echo "running crossover calling from VCF and BAM file\n"
+      echo "running for these chromosomes as specified in the header of the provided VCF file for chroms: " & $s_Chrs
       discard sgcocaller(threads, ivcf, barcodeTable, ibam,
                       out_dir, mapq, minbsq, mintotal, 
                       maxtotal, mindp, maxdp, thetaREF, thetaALT, cmPmb, s_Chrs,barcodeTag,phased = vcfGtPhased)
       var outFileTotalCountMtxFile, outFileAltCountMtxFile: string
-      ## sort entries in mtx files 
+        ## sort entries in mtx files 
       for chrom in s_Chrs:
         outFileTotalCountMtxFile = out_dir & chrom & "_totalCount.mtx"
         outFileAltCountMtxFile = out_dir & chrom & "_altCount.mtx"
@@ -323,13 +335,20 @@ Options:
           discard sortWriteMtx(imtx, mtx_file = mtxFile)
     ibam.close()
     ivcf.close()
-  if args["phase_blocks"]:
-    fmf = $args["<fmf>"]
-    out_vcf = $args["<out_vcf>"]
-    vcff = $args["<VCF>"]
-    hapfile =  $args["<hapfile>"]
-    echo "running phasing blocks \n"
-    discard phaseBlocks(fmf_file = fmf, inputVCF=vcff, outputVCF=out_vcf, block_hapfile=hapfile, threads=threads)
+  elif args["phase"]:
+    let gtMtxFile = $args["<gtMtxFile>"]
+    var phaseOutDir = $args["<phaseOutputDir>"]
+    if (phaseOutdir[^1] != '_') and (phaseOutdir[^1] != '/'): phaseOutdir = phaseOutdir & "_"
+    let snpAnnotFile = gtMtxFile.replace(sub = "_gtMtx.mtx", by = "_snpAnnot.txt")
+    echo "running phasing from single cell genotype matrix (one chromosome) " & gtMtxFile
+    echo "using the " & snpAnnotFile & "for generating phased haplotypes"
+    discard sgphase(mtxFile = gtMtxFile, snpAnnotFile = snpAnnotFile, phaseOutdir = phaseOutdir)
+  elif args["swphase"]:
+    let gtMtxFile = $args["<gtMtxFile>"]
+    let phaseSnpAnnotFile = $args["<phaseSnpAnnotFile>"]
+    echo "finding snps positions to switch from single cell genotype matrix (one chromosome) " & gtMtxFile
+    echo "using the " & phaseSnpAnnotFile & "for generating final phased haplotypes"
+    discard sgphase(mtxFile = gtMtxFile, snpAnnotFile = snpAnnotFile, phaseOutdir = phaseOutdir)
 
 
  
