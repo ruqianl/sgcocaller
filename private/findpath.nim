@@ -1,12 +1,13 @@
 ## implements the traceback function
 import utils
-from graph import SpermViNodes
+import graph 
 import streams
 import tables
 import math
 import strutils
 
-proc pathTrackBack*(currentSperm: var SpermViNodes,
+
+proc pathTrackBackIthSperm(currentSperm: var SpermViNodes,
                     ithSperm: int,
                     thetaRef: float,
                     thetaAlt: float,
@@ -102,3 +103,41 @@ proc pathTrackBack*(currentSperm: var SpermViNodes,
       viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " ") )
   
   return 0
+proc pathTrackBack*(scSpermSeq:  var SeqSpermViNodes,
+                    thetaRef: float,
+                    thetaAlt: float,
+                    cmPmb: float,
+                    outFileVStateMtx: var FileStream,
+                    viSegmentInfo: var FileStream): int = 
+
+  var posEnd: int64
+  var inferProb,reverseProb = 0.0
+  var currentEm: array[stateRef..stateAlt, float]
+  var lastNode: ViNode
+  var spermVNseq: SpermViNodes
+  var ithSNP: int
+
+  for ithSperm in 0..(scSpermSeq.len-1):
+    ## rightGap,leftGap = [0.0,0.0]
+    spermVNseq = scSpermSeq[ithSperm]
+    if spermVNseq.viNodeseq.len==0: continue
+    lastNode = spermVNseq.viNodeseq[high(spermVNseq.viNodeseq)]
+    currentEm = getEmission(thetaRef=thetaRef,thetaAlt=thetaAlt,cRef=lastNode.cRef, cAlt=lastNode.cAlt)
+    if lastNode.pathScore[stateRef] > lastNode.pathScore[stateAlt]:
+      scSpermSeq[ithSperm].viNodeseq[high(scSpermSeq[ithSperm].viNodeseq)].state = stateRef
+      ithSNP = scSpermSeq[ithSperm].spermSnpIndexLookUp[high(scSpermSeq[ithSperm].viNodeseq)+1]
+      outFileVStateMtx.writeLine($ithSNP & " " & $(ithSperm+1) & " 1")
+      inferProb  = currentEm[stateRef]
+      reverseProb = currentEm[stateAlt]
+    else:
+      scSpermSeq[ithSperm].viNodeseq[high(scSpermSeq[ithSperm].viNodeseq)].state = stateAlt
+      ithSNP = scSpermSeq[ithSperm].spermSnpIndexLookUp[high(scSpermSeq[ithSperm].viNodeseq)+1]
+      outFileVStateMtx.writeLine($ithSNP & " " & $(ithSperm+1) & " 2")
+      inferProb  = currentEm[stateAlt]
+      reverseProb = currentEm[stateRef]
+    posEnd = lastNode.pos
+    ## call pathTrackBack will write the most probably hidden state seq and viterbi segment info to the  relevant File Streams.
+    discard pathTrackBackIthSperm(currentSperm = scSpermSeq[ithSperm], ithSperm = ithSperm,  thetaRef = thetaRef, 
+                          thetaAlt = thetaAlt, cmPmb = cmPmb,outFileVStateMtx = outFileVStateMtx,
+                          viSegmentInfo = viSegmentInfo, posEnd = posEnd,  inferProb = inferProb,reverseProb = reverseProb)                    
+

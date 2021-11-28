@@ -31,7 +31,7 @@ proc countCoexistMatch(seq1: seq[BinaryGeno], seq2: seq[BinaryGeno]): seq[int] =
         nmatch += 1
   return [cell1Snps,cell2Snps,nmatch,ncoexist].toSeq
 
-proc findCellPairs(gtMtx:seq[seq[BinaryGeno]],nPairs = 3, nSnpsPercell: var seq[int]): seq[CellPairs] = 
+proc findCellPairs(gtMtx:seq[seq[BinaryGeno]], nPairs = 3, nSnpsPercell: var seq[int]): seq[CellPairs] = 
   let ncells = gtMtx.len
   var genoMatch = @[0,0,0,0]
   var returnCp = newSeq[CellPairs](nPairs)
@@ -49,13 +49,15 @@ proc findCellPairs(gtMtx:seq[seq[BinaryGeno]],nPairs = 3, nSnpsPercell: var seq[
       if k == nPairs: break
   returnCp
 
+proc compareNSnps(x, y: (int,int)): int =
+  cmp(x[0], y[0])
 
-proc findCellBynSNPs*(nSnpsPercell:seq[int],q = 0.75): int = 
+proc findCellBynSNPs*(nSnpsPercell:seq[int],q = 0.85): int = 
   # return the selected cells' index
   # not too many SNPs or too few
-  var seqNsnps = nSnpsPercell
-  sort(seqNsnps, system.cmp[int])
-  int(floor(float(seqNsnps.len) * q))
+  var indexed = zip(nSnpsPercell, toSeq(0..(nSnpsPercell.len-1)))
+  indexed.sort(compareNSnps)
+  return indexed[int(floor(float(nSnpsPercell.len) * q))][1]
 
 proc selectTemplateCell*(gtMtx:seq[seq[BinaryGeno]], nPairs = 3): int = 
   var nSnpsCells = newSeq[int](gtMtx.len)
@@ -66,12 +68,15 @@ proc selectTemplateCell*(gtMtx:seq[seq[BinaryGeno]], nPairs = 3): int =
   if cellPairs[0].coexistSnps == 0 :
     # no good pairs found
     selectedCell = findCellBynSNPs(nSnpsPercell = nSnpsCells)
+    echo "no good cell pairs found, template cell is selected by nSNPs "
+    echo "selected cell:" & $selectedCell
+    return selectedCell
   else:
     let coExistSnps = map(cellPairs, proc(x: CellPairs) : int = x.coexistSnps)
     icp = maxIndex(coExistSnps)
-  if nSnpsCells[cellPairs[icp].cell1] > nSnpsCells[cellPairs[icp].cell2]:
-    echo "selected cell: " & $cellPairs[icp].cell1 & " nSnps: " & $nSnpsCells[cellPairs[icp].cell1]
-    return cellPairs[icp].cell1
-  else:
-    echo "selected cell: " & $cellPairs[icp].cell2 & " nSnps: " & $nSnpsCells[cellPairs[icp].cell2]
-    return cellPairs[icp].cell2
+    if nSnpsCells[cellPairs[icp].cell1] > nSnpsCells[cellPairs[icp].cell2]:
+      echo "selected cell: " & $cellPairs[icp].cell1 & " nSnps: " & $nSnpsCells[cellPairs[icp].cell1]
+      return cellPairs[icp].cell1
+    else:
+      echo "selected cell: " & $cellPairs[icp].cell2 & " nSnps: " & $nSnpsCells[cellPairs[icp].cell2]
+      return cellPairs[icp].cell2

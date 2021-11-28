@@ -43,12 +43,11 @@ plot_df_match <- apply(plot_df,2,function(x){
 
 data.frame(cbind(plot_df_match,snpAnnot_df)) %>%
   tidyr::pivot_longer(cols = colnames(plot_df)) %>%
-  dplyr::filter(!is.na(value),POS > 1.3e8, POS < 1.35e8) %>%
+  dplyr::filter(!is.na(value)) %>%
   ggplot()+
   geom_point(mapping = aes(x = POS , y = name, color = value))+
   scale_color_manual(values = c("FALSE"='red',
                                 "TRUE" = "blue"))+
-    theme_bw(base_size = 18)+geom_vline(mapping = aes(xintercept = c(switch_pos[2])),
-                                        color = "red",size = 1.2)
+    theme_bw(base_size = 18)
 
 ggsave(pngfile, dpi = 100, width = 14, height = 6)

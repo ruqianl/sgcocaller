@@ -4,7 +4,7 @@
 ## Date: 2021 Oct
 ## gtMtx in 1, or 2
 import tables
-import strutils
+import strutils 
 import hts
 import utils
 import streams
@@ -15,7 +15,7 @@ import findGtNodes
 
 proc getGtMtx*(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outGtMtx:FileStream, outSnpAnnot:FileStream, 
               outTotalCountMtx:FileStream, outAltCountMtx:FileStream,maxTotalReads:int,
-              minTotalReads:int,  mapq: int,minbsq:int, barcodeTag:string, minsnpdepth:int,minCellDp:int, maxCellDp:int,p0 = 0.3, p1 = 0.8):int = 
+              minTotalReads:int, mapq: int,minbsq:int, barcodeTag:string, minsnpdepth:int,minCellDp:int, maxCellDp:int,p0 = 0.3, p1 = 0.7,chrom: string):int = 
   var variantIndex = 1
   var writtenVarintIndex = 1
   var calt,cellDP,geno,cellIndex,nnsize = 0
@@ -28,7 +28,7 @@ proc getGtMtx*(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outGtMtx:FileStream, o
     outFileStream.writeLine(sparseMatrixHeader)
     outFileStream.writeLine(' '.repeat(50))
   outSnpAnnot.writeLine(join(["POS","REF", "ALT"], sep = "\t"))
-  for rec in ivcf.query("*"): 
+  for rec in ivcf.query(chrom): 
     var rec_alt = rec.ALT[0][0]
     var rec_ref = rec.REF[0]
     cellGtNodes = findGtNodes(rec=rec, variantIndex = variantIndex, ibam=ibam, maxTotalReads=maxTotalReads,

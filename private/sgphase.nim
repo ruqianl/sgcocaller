@@ -7,7 +7,7 @@ import streams
 import strutils
 import sequtils
 
-# phaseOutdir/phased_snpAnnot.txt
+# phaseOutdir/chrom_phased_snpAnnot.txt
 # phaseOutdir/cellGenoVersusTemplate.txt
 # phaseOutdir/cellGenoVersusTemplate.png by executing the R code
 # let mtxFile = "/mnt/mcfiles/rlyu/Projects/sgcocaller/test_data/gtMtx_chr1_gtMtx.mtx"
@@ -30,14 +30,14 @@ proc writePhasedSnpAnnot*(fullGeno:seq[BinaryGeno], snpAnnotFileStream:FileStrea
     quit "snpAnnot.txt does not have the same number of rows with gtMtx"
   return 0 
  
-proc sgphase*(mtxFile: string, snpAnnotFile:string, phaseOutdir:string): int = 
+proc sgphase*(mtxFile: string, snpAnnotFile:string, phasedSnpAnnotFile:string, diagnosticDataframeFile:string, templateCell:int): int = 
   var nsnps,ncells,totalEntries:int
   var gtMtx:seq[seq[BinaryGeno]]  
   var currentEntry:seq[int]
   var currentEntrySeq:seq[string]
   var gtMtxFileStream,ddframFileStream,snpAnnotFileStream,phasedSnpAnnotFileStream:FileStream
-  let phasedSnpAnnotFile = phaseOutdir & "phased_snpAnnot.txt"
-  let diagnosticDataframeFile = phaseOutdir & "cellGenoVersusTemplate.txt"
+  #let phasedSnpAnnotFile = phaseOutdir & "phased_snpAnnot.txt"
+  #let diagnosticDataframeFile = phaseOutdir & "cellGenoVersusTemplate.txt"
   ## i, j are 1-based, entries with value 1 or 2
   try: 
     gtMtxFileStream = openFileStream(mtxFile, fmRead)
@@ -60,11 +60,22 @@ proc sgphase*(mtxFile: string, snpAnnotFile:string, phaseOutdir:string): int =
   ## gtMtx is cell by Snp format
   gtMtx = newSeqWith(ncells,newSeq[BinaryGeno](nsnps))
   discard readGtMtxToSeq(gtMtxFileStream,gtMtx)
-  var tempcell = selectTemplateCell(gtMtx = gtMtx, nPairs =3)
+  var tempcell: int
+  if templateCell != -1:
+    tempcell = templateCell
+  else:
+    tempcell = selectTemplateCell(gtMtx = gtMtx, nPairs =3)
   echo "template cell is " & $tempcell
   var tempcellGeno = gtMtx[tempcell]
-  let fullGeno = inferSnpGeno(tempcellGeno, gtMtx)
+  var fullGeno = inferSnpGeno(tempcellGeno, gtMtx)
+  echo "inferSnoGeno done"
+  # echo "second pass"
+  # fullGeno = inferSnpGeno(fullGeno, gtMtx)
+  # echo "second pass done"
   # generate the txt for diagnositc plot
+  echo "run correction"
+  fullGeno = inferSnpGeno(fullGeno, gtMtx,posterior_thresh = 0.99, runCorrection = true)
+  echo "run correction done"
   var selectedCells:seq[int]
   if ncells < 10:
     selectedCells = (0..(ncells-1)).toSeq
@@ -83,7 +94,6 @@ proc sgphase*(mtxFile: string, snpAnnotFile:string, phaseOutdir:string): int =
       for cellg in sliceColumn(subsetGtMtx, k):
         writeOut = writeOut & " " & $(parseInt($cellg)+1)
     ddframFileStream.writeLine(writeOut)
-  
   discard writePhasedSnpAnnot(fullGeno, snpAnnotFileStream, phasedSnpAnnotFileStream)
   for fs in [gtMtxFileStream,ddframFileStream,snpAnnotFileStream,phasedSnpAnnotFileStream]:
     fs.close()
@@ -92,3 +102,20 @@ proc sgphase*(mtxFile: string, snpAnnotFile:string, phaseOutdir:string): int =
 
 
 
+# var s_Chrs = @["CUR6G"]
+
+# for chrom in s_Chrs:
+#   var mtxFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_" & chrom & "_gtMtx.mtx"
+#   var phasedSnpFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_"  & chrom & "_phased_snpAnnot.txt"
+#   var snpAnnotFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_"  & chrom & "_snpAnnot.txt"
+#   var ddframe = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_"  & chrom & "_cellGenoVersusTemplate.txt"
+  
+#   discard sgphase(mtxFile, snpAnnotFile, phasedSnpFile,ddframe)
+
+# for chrom in s_Chrs:
+#   var mtxFile = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_gtMtx.mtx"
+#   var phasedSnpFile = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_phased_snpAnnot.txt"
+#   var snpAnnotFile = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_snpAnnot.txt"
+#   var ddframe = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_cellGenoVersusTemplate.txt"
+  
+#   discard sgphase(mtxFile, snpAnnotFile, phasedSnpFile,ddframe)

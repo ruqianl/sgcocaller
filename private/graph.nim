@@ -15,7 +15,54 @@ type
     spermSnpIndexLookUp*: Table[int,int]
   SeqSpermViNodes* = seq[SpermViNodes]
 
-
+proc addViNodeIthSperm*(scSpermSeq: var SeqSpermViNodes, cAlt: int, cRef: int, ithSperm:int, emissionArray: array[stateRef..stateAlt, float], snpIndex:int, initProb: array[stateRef..stateAlt, float], rec_pos:int,cmPmb:float): int = 
+  if scSpermSeq[ithSperm].viNodeseq.len==0:
+    var currentViNode = ViNode()
+    currentViNode.pathScore[stateRef] = math.ln(initProb[stateRef])+emissionArray[stateRef]
+    currentViNode.pathScore[stateAlt] = math.ln(initProb[stateAlt])+emissionArray[stateAlt]
+    currentViNode.pathState[stateRef] = stateN
+    currentViNode.pathState[stateAlt] = stateN
+    currentViNode.state = stateN
+    currentViNode.pos = rec_pos
+    currentViNode.cAlt = cAlt
+    currentViNode.cRef = cRef
+    
+    scSpermSeq[ithSperm].viNodeseq.add(currentViNode)
+    scSpermSeq[ithSperm].snpIndexLookUp[snpIndex] = scSpermSeq[ithSperm].viNodeseq.len
+    scSpermSeq[ithSperm].spermSnpIndexLookUp[scSpermSeq[ithSperm].viNodeseq.len] = snpIndex
+  else:
+    let preVNode = scSpermSeq[ithSperm].viNodeseq[high(scSpermSeq[ithSperm].viNodeseq)]
+    var ltransProb = math.ln(getTrans(preVNode.pos,int(rec_pos),cmPmb=cmPmb))
+    var lnoTransProb = math.ln(1-getTrans(preVNode.pos,int(rec_pos),cmPmb=cmPmb))
+    var currentViNode = ViNode()
+      # ref/alt -> ref
+    var refTref = preVNode.pathScore[stateRef] + lnoTransProb
+    var altTref = preVNode.pathScore[stateAlt] + ltransProb
+    if refTref > altTref:
+      currentViNode.pathScore[stateRef] = refTref
+      currentViNode.pathState[stateRef] = stateRef
+    else:
+      currentViNode.pathScore[stateRef] = altTref
+      currentViNode.pathState[stateRef] = stateAlt
+      # ref/alt -> alt
+    var refTalt = preVNode.pathScore[stateRef] + ltransProb
+    var altTalt = preVNode.pathScore[stateAlt] + lnoTransProb
+      
+    if refTalt > altTalt:
+      currentViNode.pathScore[stateAlt] = refTalt
+      currentViNode.pathState[stateAlt] = stateRef
+    else:
+      currentViNode.pathScore[stateAlt] = altTalt
+      currentViNode.pathState[stateAlt] = stateAlt
+    currentViNode.pathScore[stateAlt] += emissionArray[stateAlt]
+    currentViNode.pathScore[stateRef] += emissionArray[stateRef]
+    currentViNode.cAlt = cAlt
+    currentViNode.cRef = cRef
+    currentViNode.pos = rec_pos
+    scSpermSeq[ithSperm].viNodeseq.add(currentViNode)
+    scSpermSeq[ithSperm].snpIndexLookUp[snpIndex] = scSpermSeq[ithSperm].viNodeseq.len
+    scSpermSeq[ithSperm].spermSnpIndexLookUp[scSpermSeq[ithSperm].viNodeseq.len] = snpIndex  
+  return 0
 proc addViNode*(barcodeTable: TableRef, 
                alleleCountTable: Table[string,allele_expr],
                scSpermSeq: var SeqSpermViNodes,
@@ -40,51 +87,6 @@ proc addViNode*(barcodeTable: TableRef,
     outFileAltCountMtx.writeLine($snpIndex & " " & $(ithSperm+1) & " " & $ac.cAlt)
     nnsize += 1
     var emissionArray = getEmission(thetaRef=thetaRef,thetaAlt=thetaAlt,cRef=ac.cRef,cAlt=ac.cAlt)
-    if scSpermSeq[ithSperm].viNodeseq.len==0:
-      var currentViNode = ViNode()
-      currentViNode.pathScore[stateRef] = math.ln(initProb[stateRef])+emissionArray[stateRef]
-      currentViNode.pathScore[stateAlt] = math.ln(initProb[stateAlt])+emissionArray[stateAlt]
-      currentViNode.pathState[stateRef] = stateN
-      currentViNode.pathState[stateAlt] = stateN
-      currentViNode.state = stateN
-      currentViNode.pos = int(rec_pos)
-      currentViNode.cAlt = int(ac.cAlt)
-      currentViNode.cRef = int(ac.cRef)
-      
-      scSpermSeq[ithSperm].viNodeseq.add(currentViNode)
-      scSpermSeq[ithSperm].snpIndexLookUp[snpIndex] = scSpermSeq[ithSperm].viNodeseq.len
-      scSpermSeq[ithSperm].spermSnpIndexLookUp[scSpermSeq[ithSperm].viNodeseq.len] = snpIndex
-    else:
-      let preVNode = scSpermSeq[ithSperm].viNodeseq[high(scSpermSeq[ithSperm].viNodeseq)]
-      var ltransProb = math.ln(getTrans(preVNode.pos,int(rec_pos),cmPmb=cmPmb))
-      var lnoTransProb = math.ln(1-getTrans(preVNode.pos,int(rec_pos),cmPmb=cmPmb))
-      var currentViNode = ViNode()
-        # ref/alt -> ref
-      var refTref = preVNode.pathScore[stateRef] + lnoTransProb
-      var altTref = preVNode.pathScore[stateAlt] + ltransProb
-      if refTref > altTref:
-        currentViNode.pathScore[stateRef] = refTref
-        currentViNode.pathState[stateRef] = stateRef
-      else:
-        currentViNode.pathScore[stateRef] = altTref
-        currentViNode.pathState[stateRef] = stateAlt
-        # ref/alt -> alt
-      var refTalt = preVNode.pathScore[stateRef] + ltransProb
-      var altTalt = preVNode.pathScore[stateAlt] + lnoTransProb
-        
-      if refTalt > altTalt:
-        currentViNode.pathScore[stateAlt] = refTalt
-        currentViNode.pathState[stateAlt] = stateRef
-      else:
-        currentViNode.pathScore[stateAlt] = altTalt
-        currentViNode.pathState[stateAlt] = stateAlt
-      currentViNode.pathScore[stateAlt] += emissionArray[stateAlt]
-      currentViNode.pathScore[stateRef] += emissionArray[stateRef]
-      currentViNode.cAlt = int(ac.cAlt)
-      currentViNode.cRef = int(ac.cRef)
-      currentViNode.pos = int(rec_pos)
-      scSpermSeq[ithSperm].viNodeseq.add(currentViNode)
-      scSpermSeq[ithSperm].snpIndexLookUp[snpIndex] = scSpermSeq[ithSperm].viNodeseq.len
-      scSpermSeq[ithSperm].spermSnpIndexLookUp[scSpermSeq[ithSperm].viNodeseq.len] = snpIndex
+    discard addViNodeIthSperm(scSpermSeq = scSpermSeq, cAlt = int(ac.calt), cRef = int(ac.cref), ithSperm = ithSperm, emissionArray =emissionArray, snpIndex =snpIndex,initProb = initProb,rec_pos =rec_pos,cmPmb = cmPmb)
   return 0
 # The size line  

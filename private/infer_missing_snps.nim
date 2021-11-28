@@ -7,7 +7,7 @@ import math
 import utils
 
 let nAnchorSnps = 10
-
+let maxExpand = 1000
 proc sliceColumn*(gtMtx:seq[seq[BinaryGeno]],colIndex:int): seq[BinaryGeno] = 
   map(gtMtx, proc(x:seq[BinaryGeno]):BinaryGeno = x[colIndex])
 
@@ -29,29 +29,32 @@ proc matchTemplateHap(cell_geno:seq[BinaryGeno], temp_geno:seq[BinaryGeno],error
   else:
     return @[1.0, ll_h1/(ll_h0 + ll_h1)]
 
-proc inferGeno(type00:int, type10:int, error_rate = 0.1,posterior_thresh = 0.98): BinaryGeno = 
+proc inferGeno(type00:int, type10:int, error_rate = 0.1,posterior_thresh = 0.99): BinaryGeno = 
   let prob_0 = error_rate^type10*(1-error_rate)^(type00)
   let prob_1 = error_rate^type00*(1-error_rate)^(type10)
   let prob_0_p = prob_0/(prob_0 + prob_1)
   let prob_1_p = 1 - prob_0_p 
   if max(prob_0_p,prob_1_p) > posterior_thresh:
+    echo "posterior_prob: " & $(max(prob_0_p,prob_1_p))
     if prob_0_p > prob_1_p:
+      echo "returned inferred geno: gREF"
       return gREF
     else:
+      echo "returned inferred geno: gALT"
       return gALT
   return gUnknown
 # return full sequence of template geno by inferring missing SNPs's genotypes 
-proc inferSnpGeno*(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], posterior_thresh = 0.99):seq[BinaryGeno] = 
+proc inferSnpGeno*(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], posterior_thresh = 0.99, runCorrection = false):seq[BinaryGeno] = 
   var fullGeno = templateGeno
   let nSnps = gtMtx[0].len
   var coexisPos:seq[int]
   var snpLD: seq[float]
   var type00, type10: int
-
   var snpiInCells = newSeq[BinaryGeno](gtMtx.len)
-  var offset = 1
+  var offset,totalIter = 1
   for i,missingSnpi in templateGeno:
-    if missingSnpi != gUnknown: continue
+    if (not runCorrection) and (missingSnpi != gUnknown): continue
+    #echo "inferring ith SNP: " & $i
     snpiInCells = sliceColumn(gtMtx,i)
     type00 = 0
     type10 = 0
@@ -59,19 +62,26 @@ proc inferSnpGeno*(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], po
       if snpiGeno == gUnknown: continue
       # find 10 coexisting positions for cell j with template geno seq
       offset = 1
+      totalIter = 1
       coexisPos = newSeq[int]()
-      while(coexisPos.len < nAnchorSnps):
+      while(coexisPos.len < nAnchorSnps and totalIter < maxExpand):
         if ((i+offset) < nSnps):
-          if((gtMtx[j][i+offset] != gUnknown) and (fullGeno[i+offset] != gUnknown)):
+          if((gtMtx[j][i+offset] != gUnknown) and (templateGeno[i+offset] != gUnknown)):
             coexisPos.add(i+offset)
         if (i-offset) >= 0:
-          if((gtMtx[j][i-offset] != gUnknown) and (fullGeno[i-offset] != gUnknown)):
+          if((gtMtx[j][i-offset] != gUnknown) and (templateGeno[i-offset] != gUnknown)):
             coexisPos.add(i-offset)
         offset += 1
+        totalIter += 1
+      if coexisPos.len < int(nAnchorSnps/2): continue
       snpLD = matchTemplateHap(cell_geno = map(coexisPos,proc(x:int): BinaryGeno =  gtMtx[j][x]), 
-                               temp_geno = map(coexisPos,proc(x:int): BinaryGeno =  fullGeno[x]) )
-      if snpLD[1] > posterior_thresh:
-        if snpLD[0] == 1.0:
+                               temp_geno = map(coexisPos,proc(x:int): BinaryGeno =  templateGeno[x]) )
+      if i == 1628:
+        echo  "ithSNP: " & $i & "jth cell: " & $j
+        echo "snpLD results: " & $snpLD
+        
+      if snpLD[1] > 0.999:
+        if snpLD[0] == 1.0:  ## match to template H1
           if snpiGeno == gREF: ## snpiGeno is 1 or 2 
             type10 += 1 
           else:
@@ -82,8 +92,8 @@ proc inferSnpGeno*(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], po
           else:
             type10 += 1
       else: continue
-    # echo "type00 " & $type00
-    # echo "type10 " & $type10
+    echo "ithSNP: " & $i & " type00: " & $type00 & ",type10: " & $type10
+    # echo 
     fullGeno[i] = inferGeno(type00, type10)  
   return fullGeno
 
