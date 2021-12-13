@@ -1,9 +1,9 @@
 ## sgcocaller: Calling crossovers from single-gamete DNA sequencing reads
 
-Two modules are available in `sgcocaller`, `fmf` and `xo`. `sgcocaller fmf`
-generates the fragment input files for phasing the individual using the 
-gametes' genotypes along the heterozygous SNPs. `sgcocaller xo` calls crossovers
-in each single gamete using a Hidden Markov Model.
+Two main modules are available in `sgcocaller`, phasing and crossover calling.
+`sgcocalelr phase` generate donor haplotype from single-gamete DNA sequencing data.
+ `sgcocaller xo` and `sgcocaller sxo` both call crossovers in each single 
+ gamete using a Hidden Markov Model.
 
 `sgcocaller` processes DNA reads from each single gamete in the aligned and 
 sorted BAM file for inferring the haplotypes of single gamete genomes that can 
