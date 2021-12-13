@@ -1,9 +1,7 @@
 ## write output VCF file
 import hts
 import streams
-import sequtils
 import strutils
-import correctPhase
 
 let debug = true
 
@@ -28,7 +26,6 @@ proc writePhaseToVCF*(ivcfFile:string, ovcfFile: string, phasedAnnotFile: string
   var ivcf: VCF
   var ovcf: VCF
   var v_off = 0
-  var current_block = 0
   var phasedAnnotFS: FileStream
   var phaseRec = newSeq[string](4)
   var phasePos: int
@@ -46,7 +43,6 @@ proc writePhaseToVCF*(ivcfFile:string, ovcfFile: string, phasedAnnotFile: string
   discard ovcf.write_header()
   discard phasedAnnotFS.readLine()
   var gt_string:seq[int32]
-  var snpIndexInPhasedAnnotFile = 0
   phaseRec = readNextPhased(phasedAnnotFS)
   if debug: echo phasedAnnotFS.atEnd()
   phasePos = parseInt(phaseRec[0])
@@ -54,10 +50,12 @@ proc writePhaseToVCF*(ivcfFile:string, ovcfFile: string, phasedAnnotFile: string
   var queryChrom = chrom
   if queryChrom == "nil":
     queryChrom = "*"
+  if debug: echo "wrote headers, and now starting write phased VCF"
   for v in ivcf.query(queryChrom):
     if v.POS.cint != phasePos: continue
     else:
       var f = v.format()
+#      if debug: echo "wrote v in ivcf and set GT " & $v.POS.cint
       if phasePhase == 0:
         ## 0|1
         #if debug: echo "block hap0 and this h0 is 0 0|1"

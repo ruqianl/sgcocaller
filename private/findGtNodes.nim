@@ -22,8 +22,10 @@ proc findGtNodes*(rec:Variant, variantIndex: int, ibam:Bam, maxTotalReads:int, m
     if cbt.isNone:
       continue  
     else:
-      currentCB = cbt.get  
-    if aln.flag.unmapped or aln.mapping_quality.cint < mapq or aln.flag.dup: continue
+      currentCB = cbt.get      
+    if aln.flag.unmapped or aln.mapping_quality.cint < mapq or aln.flag.dup:
+#      echo "read skipped, bad mapping"
+      continue
     ## skip unmapped, duplicated, mapq low reads or aln.flag.secondary or aln.flag.supplementary
     ## if not aln.flag.proper_pair: continue
     if not barcodeTable.hasKey(currentCB): 
@@ -35,7 +37,7 @@ proc findGtNodes*(rec:Variant, variantIndex: int, ibam:Bam, maxTotalReads:int, m
     total_reads+=1
     if barcodedNodesTable.hasKey(currentCB):
       if base == rec.REF[0]: 
-     #   echo "adding ref geno to cell " & currentCB
+    #     echo "adding ref geno to cell " & currentCB
         barcodedNodesTable[currentCB].alleles = add_allele(barcodedNodesTable[currentCB],alleleBinGeno = 0)
         continue
       if base == rec_alt: 

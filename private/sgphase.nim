@@ -1,7 +1,7 @@
 # phase from genotype matrices generated from sgcocaller gtMtx
 
-import find_template_cell
-import infer_missing_snps
+import findTemplateCell
+import inferMissingSnps
 import utils
 import streams
 import strutils
@@ -30,7 +30,7 @@ proc writePhasedSnpAnnot*(fullGeno:seq[BinaryGeno], snpAnnotFileStream:FileStrea
     quit "snpAnnot.txt does not have the same number of rows with gtMtx"
   return 0 
  
-proc sgphase*(mtxFile: string, snpAnnotFile:string, phasedSnpAnnotFile:string, diagnosticDataframeFile:string, templateCell:int): int = 
+proc sgphase*(mtxFile: string, snpAnnotFile:string, phasedSnpAnnotFile:string, diagnosticDataframeFile:string, templateCell:int, maxExpand = 1000, posteriorProbMin = 0.99,maxDissim:float): int = 
   var nsnps,ncells,totalEntries:int
   var gtMtx:seq[seq[BinaryGeno]]  
   var currentEntry:seq[int]
@@ -64,17 +64,17 @@ proc sgphase*(mtxFile: string, snpAnnotFile:string, phasedSnpAnnotFile:string, d
   if templateCell != -1:
     tempcell = templateCell
   else:
-    tempcell = selectTemplateCell(gtMtx = gtMtx, nPairs =3)
+    tempcell = selectTemplateCell(gtMtx = gtMtx, nPairs =3, maxDissim = maxDissim)
   echo "template cell is " & $tempcell
   var tempcellGeno = gtMtx[tempcell]
-  var fullGeno = inferSnpGeno(tempcellGeno, gtMtx)
+  var fullGeno = inferSnpGeno(tempcellGeno, gtMtx,posterior_thresh = posteriorProbMin, runCorrection = false, maxExpand = maxExpand)
   echo "inferSnoGeno done"
   # echo "second pass"
   # fullGeno = inferSnpGeno(fullGeno, gtMtx)
   # echo "second pass done"
   # generate the txt for diagnositc plot
   echo "run correction"
-  fullGeno = inferSnpGeno(fullGeno, gtMtx,posterior_thresh = 0.99, runCorrection = true)
+  fullGeno = inferSnpGeno(fullGeno, gtMtx,posterior_thresh = posteriorProbMin, runCorrection = true, maxExpand = maxExpand)
   echo "run correction done"
   var selectedCells:seq[int]
   if ncells < 10:

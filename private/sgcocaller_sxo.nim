@@ -1,5 +1,5 @@
 ## sgcocaller sxo, using pre-generated mtx files for finding crossovers using a HMM model
-from findpath import pathTrackBack
+from findPath import pathTrackBack
 from graph  import addViNodeIthSperm, SeqSpermViNodes
 import tables
 import hts

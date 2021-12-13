@@ -37,7 +37,7 @@ proc getGtMtx*(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outGtMtx:FileStream, o
     cellGtNodeCopy = cellGtNodes
     for cellbarcode in cellGtNodeCopy.keys:
       cellDP = cellGtNodes[cellbarcode].alleles.len
-      if cellDP < minCellDp:
+      if cellDP < minCellDp or cellDP > maxCellDp:
         cellGtNodes.del(cellbarcode)
         continue
       calt = cellGtNodes[cellbarcode].alleles.count("1")

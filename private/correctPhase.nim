@@ -9,7 +9,7 @@ import strutils
 let binSize = 2000
 let movingStep = 200
 let dissimThresh = 0.0099 
-let lookBeyondSnps = 25
+#let lookBeyondSnps = 25
 let debug = false
 let switchPrior = 0.5
 type 
@@ -128,7 +128,7 @@ proc switchHap(hap: seq[BinaryGeno]): seq[BinaryGeno] =
 proc getIthCellHap(gtMtxByCell:seq[seq[BinaryGeno]],cellIndex:int):seq[BinaryGeno] = 
   map(gtMtxByCell, proc(y: seq[BinaryGeno]): BinaryGeno = y[cellIndex])
 
-proc calSwitchScore(riskySnps: seq[int], gtMtxByCell:seq[seq[BinaryGeno]], fullGeno: seq[BinaryGeno]): switchScoreTuple = 
+proc calSwitchScore(riskySnps: seq[int], gtMtxByCell:seq[seq[BinaryGeno]], fullGeno: seq[BinaryGeno], lookBeyondSnps = 25): switchScoreTuple = 
   var letfIndexStart,letfIndexEnd,rightIndexStart,rightIndexEnd,offset: int
   let nSnps = gtMtxByCell.len
   let ncells =  gtMtxByCell[0].len
@@ -164,17 +164,6 @@ proc calSwitchScore(riskySnps: seq[int], gtMtxByCell:seq[seq[BinaryGeno]], fullG
       templ_geno_right = map(rightIndex, proc(x:int):BinaryGeno = fullGeno[x])
       templ_geno = concat(templ_geno_left,templ_geno_right)
       hswitch = concat(templ_geno_left,switchHap(templ_geno_right))
-      # if rsnpi == 16933:
-      #   echo "cell " & $celli
-      #   echo "cell_hap " & $cell_hap
-      #   echo "templ_geno " & $templ_geno
-      #   echo "hswitch " & $hswitch
-      #   echo "prev prob nosw " & $prob_nonsw
-      #   echo "prev prob_switch " & $prob_switch   
-      #   echo "nmatch temp_geno " & $(countNmatch(hap = templ_geno, cell_hap = cell_hap))
-      #   echo "nmatch hswitch " & $(countNmatch(hap = hswitch, cell_hap = cell_hap))
-      #   echo "nmis temp_geno " & $(countNMis(hap = templ_geno, cell_hap = cell_hap))
-      #   echo "nmis hswitch " & $(countNMis(hap = hswitch, cell_hap = cell_hap))    
       prob_nonsw = prob_nonsw + calculateProbslog10(hap = templ_geno, cell_hap = cell_hap)
       prob_switch = prob_switch + calculateProbslog10(hap = hswitch, cell_hap = cell_hap)
 
@@ -185,18 +174,19 @@ proc calSwitchScore(riskySnps: seq[int], gtMtxByCell:seq[seq[BinaryGeno]], fullG
 
 ## return SNP indexs to switch
 ## switchScore, a dense list of switch scores
-proc findSwitchSites(switchScoreT: switchScoreTuple): seq[int] = 
+proc findSwitchSites(switchScoreT: switchScoreTuple, lookBeyondSnps = 25, minSwitchScore:float, minPositiveSwitchScores = 25): seq[int] = 
   var sitesToSwitch = newSeq[int]()
   var positiveScores: seq[float]
   var positiveScoresIndex: seq[int]
   
   var inPositiveBlock = false
   for site, score in switchScoreT.switch_scores:
+    echo "site, " & $site & " score: " & $(score)
     if switchScoreT.switch_scores_snpIndex.find(site)>=0:
-      if score <= 0.0 :
+      if score <= 0.0 or (switchScoreT.switch_scores_snpIndex.find(site) == (switchScoreT.switch_scores_snpIndex.len - 1)) :
         if inPositiveBlock:
           inPositiveBlock = false
-          if positiveScoresIndex.len > int(floor(lookBeyondSnps/3)):
+          if (positiveScoresIndex.len > minPositiveSwitchScores) and (max(positiveScores) >= minSwitchScore):
             sitesToSwitch.add(positiveScoresIndex[maxIndex(positiveScores)])
           continue
       elif not inPositiveBlock:
@@ -246,7 +236,7 @@ proc writeSwitchedPhase(siteToSwitch:seq[int],switchedPhasedAnnotFile:string, ph
   phaseSnpAnnotFileFS.close()
   return 0
 
-proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAnnotFile:string, switchScoreFile: string): int = 
+proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAnnotFile:string, switchScoreFile: string, lookBeyondSnps = 25,minSwitchScore:float, minPositiveSwitchScores:int): int = 
   var gtMtxByCell: seq[seq[BinaryGeno]]
   var currentEntrySeq: seq[string]
   var currentEntry:seq[int]
@@ -277,8 +267,8 @@ proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAn
   var fullGeno = readPhasedSnpAnnot(phasedSnpAnnotFileStream = phaseSnpAnnotFileStream, nSnps = nSnps )
   var riskySnps = findHighRiskSnps(fullGeno = fullGeno, gtMtxByCell = gtMtxByCell)
   echo "riskySnps.len " & $riskySnps.len
-  var switchScoresT = calSwitchScore(riskySnps = riskySnps, gtMtxByCell =gtMtxByCell, fullGeno = fullGeno)
-  let switchSites = findSwitchSites(switchScoresT)
+  var switchScoresT = calSwitchScore(riskySnps = riskySnps, gtMtxByCell =gtMtxByCell, fullGeno = fullGeno, lookBeyondSnps = lookBeyondSnps)
+  let switchSites = findSwitchSites(switchScoresT, lookBeyondSnps = lookBeyondSnps,minSwitchScore = minSwitchScore, minPositiveSwitchScores = minPositiveSwitchScores)
   switchScoreFileStream.writeLine("#" & $switchSites)
   for snpi,score in switchScoresT.switch_scores:
     if switchScoresT.switch_scores_snpIndex.find(snpi)>=0:
@@ -289,9 +279,9 @@ proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAn
     fs.close()
   discard writeSwitchedPhase(switchSites,switchedPhasedAnnotFile,phaseSnpAnnotFile)
 
-# for chrom in @["chr4"]:    
-#   let gtMtxFile = "data/WC_CNV_42/sgcocaller/gtMtx/" & chrom & "_gtMtx.mtx"
-#   let phaseSnpAnnotFile = "data/WC_CNV_42/sgcocaller/phase/" & chrom & "_phased_snpAnnot.txt"
-#   let switchedPhasedAnnotFile = "data/WC_CNV_42/sgcocaller/phase/" & chrom & "_corrected_phased_snpAnnot.txt"
-#   let switchScoreFile = "data/WC_CNV_42/sgcocaller/phase/" & chrom & "_switch_score.txt"  
-#   discard correctPhase(gtMtxFile,phaseSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile)
+# for chrom in @["chr5"]:    
+#   let gtMtxFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseOneStep/hsperm_" & chrom & "_gtMtx.mtx"
+#   let phaseSnpAnnotFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseOneStep/hsperm_" & chrom & "_phased_snpAnnot.txt"
+#   let switchedPhasedAnnotFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseCorrected/hsperm_" & chrom & "_corrected_phased_snpAnnot.txt"
+#   let switchScoreFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseCorrected/hsperm_" & chrom & "_switch_score.txt"  
+#   discard correctPhase(gtMtxFile,phaseSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile,lookBeyondSnps = 150,minSwitchScore = 280.0, minPositiveSwitchScores = 25)

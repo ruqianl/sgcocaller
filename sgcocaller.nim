@@ -9,10 +9,10 @@ import private/utils
 import math
 import streams
 import private/graph
-import private/findpath
-import private/genotype_mtx
+import private/findPath
+import private/getGtMtx
 import private/sgphase
-import private/write_out_vcf
+import private/writeVCF
 import private/correctPhase
 import private/sgcocaller_sxo
 
@@ -127,13 +127,19 @@ Options:
   --maxDP <maxDP>  the maximum DP for a SNP to be included in the output file [default: 5]
   --maxTotalDP <maxTotalDP>  the maximum DP across all barcodes for a SNP to be included in the output file [default: 25]
   --minTotalDP <minTotalDP>  the minimum DP across all barcodes for a SNP to be included in the output file [default: 10]
-  --minSNPdepth <minSNPdepth>  the minimum depth of coverage for a SNPs to be includes in generated fragments [default: 1]
+  --minSNPdepth <minSNPdepth>  the minimum depth of cell coverage for a SNP to be includes in generated genotype matrix file [default: 1]
   --thetaREF <thetaREF>  the theta for the binomial distribution conditioning on hidden state being REF [default: 0.1]
   --thetaALT <thetaALT>  the theta for the binomial distribution conditioning on hidden state being ALT [default: 0.9]
   --cmPmb <cmPmb>  the average centiMorgan distances per megabases default 0.1 cm per Mb [default: 0.1]
   --phased  the input VCF for calling crossovers contains the phased GT of heterozygous SNPs
   --outvcf  generate the output in vcf format (phase)  
   --templateCell <templateCell>  the cell's genotype to be used a template cell, as the cell's index (0-starting) in the barcode file, default as not supplied [default: -1]
+  --maxDissim <maxDissim>  the maximum dissimilarity for a pair of cell to be selected as potential template cells due to not having crossovers in either cell [default: 0.0099]
+  --maxExpand <maxExpand>  the maximum number of iterations to look for locally coexisting positions for inferring missing SNPs in template haplotype sequence [default: 1000]
+  --posteriorProbMin <posteriorProbMin>  the min posterior probability for inferring missing SNPs [default: 0.99]
+  --lookBeyondSnps <lookBeyondSnps>  the number of local SNPs to use when finding switch positions [default: 25]
+  --minSwitchScore <minSwitchScore>  the minimum switch score for a site to be identified as having a switch error in the inferred haplotype  [default: 50.0]
+  --minPositiveSwitchScores <minPositiveSwitchScores>  the min number of continuing SNPs with positive switch scores to do switch error correction [default: 8]  
   -h --help  show help
 
 
@@ -147,8 +153,8 @@ Options:
   let args = docopt(doc, version=version)
   
   var
-    threads,mapq,minbsq,mintotal,maxtotal,mindp,maxdp,minsnpdepth:int
-    thetaREF,thetaALT,cmPmb:float
+    threads,mapq,minbsq,mintotal,maxtotal,mindp,maxdp,minsnpdepth,maxExpand,lookBeyondSnps,minPositiveSwitchScores:int
+    thetaREF,thetaALT,cmPmb,posteriorProbMin,maxDissim,minSwitchScore:float
     barcodeTag="CB"
     out_dir,selectedChrs,barcodeFile,bamfile,vcff:string
     vcfGtPhased = false
@@ -165,8 +171,14 @@ Options:
   minsnpdepth = parse_int($args["--minSNPdepth"])
   mapq = parse_int($args["--minMAPQ"])
   minbsq = parse_int($args["--baseq"])
+  maxExpand = parse_int($args["--maxExpand"])
+  lookBeyondSnps = parse_int($args["--lookBeyondSnps"])
+  minPositiveSwitchScores =  parse_int($args["--minPositiveSwitchScores"])
   thetaRef = parse_float($args["--thetaREF"])
   thetaAlt = parse_float($args["--thetaALT"])
+  posteriorProbMin = parse_float($args["--posteriorProbMin"])
+  maxDissim = parse_float($args["--maxDissim"])
+  minSwitchScore = parse_float($args["--minSwitchScore"])
   cmPmb = parse_float($args["--cmPmb"])
   vcfGtPhased = parse_bool($args["--phased"])
   out_dir = $args["<out_prefix>"]
@@ -234,7 +246,9 @@ Options:
             discard sortWriteMtx(imtx, mtx_file = mtxFile) 
           echo "running phasing from single cell genotype matrix (one chromosome) " & outGtMtxFile
           echo "using the " & outSnpAnnotFile & "for generating phased haplotypes"
-          discard sgphase(mtxFile = outGtMtxFile, snpAnnotFile = outSnpAnnotFile, phasedSnpAnnotFile = outphasedSnpAnnotFile, diagnosticDataframeFile = outdiagnosticDataframeFile, templateCell = templateCell)
+          discard sgphase(mtxFile = outGtMtxFile, snpAnnotFile = outSnpAnnotFile, phasedSnpAnnotFile = outphasedSnpAnnotFile,
+                          diagnosticDataframeFile = outdiagnosticDataframeFile, templateCell = templateCell, 
+                          maxExpand = maxExpand, posteriorProbMin = posteriorProbMin,maxDissim = maxDissim)
           if parse_bool($args["--outvcf"]):
             var outvcfFile = out_dir & chrom &  "_phased_snpAnnot.vcf.gz"   
             discard writePhaseToVCF(vcff, outvcfFile, outphasedSnpAnnotFile,threads = threads)    
@@ -277,7 +291,7 @@ Options:
     let switchedPhasedAnnotFile = out_dir & "corrected_phased_snpAnnot.txt"
     let switchScoreFile = out_dir & "switch_score.txt" 
     let switchedPhasedAnnotVcfFile  = out_dir & "corrected_phased_snpAnnot.vcf.gz"
-    discard correctPhase(gtMtxFile,phasedSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile)
+    discard correctPhase(gtMtxFile,phasedSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile,lookBeyondSnps = lookBeyondSnps,minSwitchScore = minSwitchScore, minPositiveSwitchScores = minPositiveSwitchScores)
     if ($args["--chrom"] == "nil"):
       echo "Assuming supplied VCF only contains the SNPs for the relevant chromosome. If this is not the case, use --chrom option"
     

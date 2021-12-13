@@ -1,8 +1,6 @@
 # find template gamete that serves as a initial haplotype for this individual
 
-import streams
 import sequtils
-import strutils
 import math
 import algorithm
 import utils
@@ -16,7 +14,7 @@ type
   
 let
   minCoexit = 1000
-  maxDissim = 0.0099
+#  maxDissim = 0.0099
 
 proc countCoexistMatch(seq1: seq[BinaryGeno], seq2: seq[BinaryGeno]): seq[int] = 
   if not (seq1.len == seq2.len):
@@ -31,7 +29,7 @@ proc countCoexistMatch(seq1: seq[BinaryGeno], seq2: seq[BinaryGeno]): seq[int] =
         nmatch += 1
   return [cell1Snps,cell2Snps,nmatch,ncoexist].toSeq
 
-proc findCellPairs(gtMtx:seq[seq[BinaryGeno]], nPairs = 3, nSnpsPercell: var seq[int]): seq[CellPairs] = 
+proc findCellPairs(gtMtx:seq[seq[BinaryGeno]], nPairs = 3, nSnpsPercell: var seq[int], maxDissim: float): seq[CellPairs] = 
   let ncells = gtMtx.len
   var genoMatch = @[0,0,0,0]
   var returnCp = newSeq[CellPairs](nPairs)
@@ -59,9 +57,9 @@ proc findCellBynSNPs*(nSnpsPercell:seq[int],q = 0.85): int =
   indexed.sort(compareNSnps)
   return indexed[int(floor(float(nSnpsPercell.len) * q))][1]
 
-proc selectTemplateCell*(gtMtx:seq[seq[BinaryGeno]], nPairs = 3): int = 
+proc selectTemplateCell*(gtMtx:seq[seq[BinaryGeno]], nPairs = 3, maxDissim: float): int = 
   var nSnpsCells = newSeq[int](gtMtx.len)
-  var cellPairs = findCellPairs(gtMtx = gtMtx, nPairs = nPairs, nSnpsPercell = nSnpsCells)
+  var cellPairs = findCellPairs(gtMtx = gtMtx, nPairs = nPairs, nSnpsPercell = nSnpsCells,maxDissim = maxDissim)
   echo "cellPairs: "
   echo cellPairs
   var selectedCell, icp: int
