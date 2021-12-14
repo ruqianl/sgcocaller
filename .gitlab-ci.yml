@@ -15,11 +15,11 @@ buildStatic:
   image: svirlyu/sscocaller_nsb
   stage: buildStatic
   script:
-    - /usr/local/bin/nsb -s ./src/sgcocaller.nim -n sgcocaller.nimble -o . -- --d:release --threads:on
-    - ls -l ./src
+    - /usr/local/bin/nsb -s sgcocaller.nim -n sgcocaller.nimble -o . -- --d:release --threads:on
+    - ls -l .
   artifacts:
     paths:
-      - ./src/sgcocaller
+      - sgcocaller
 
 testUbuntu:
   tags:
@@ -27,7 +27,7 @@ testUbuntu:
   image: ubuntu
   stage: testStatic
   script:
-    - ./src/sgcocaller -h
+    - sgcocaller -h
 
 testDebian:
   tags:
@@ -35,12 +35,12 @@ testDebian:
   image: debian
   stage: testStatic
   script:
-    - ./src/sgcocaller -h
+    - sgcocaller -h
 
 testRedHat:
   stage: testStatic
   script:
-    - ./src/sgcocaller -h
+    - sgcocaller -h
 
 
 ## shell executer    
@@ -55,7 +55,7 @@ testAlpine:
   image: alpine
   stage: testStatic
   script:
-  - ./src/sgcocaller -h
+  - sgcocaller -h
 
 
 
