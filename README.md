@@ -1,7 +1,7 @@
 ## sgcocaller: Calling crossovers from single-gamete DNA sequencing reads
 
 Two main modules are available in `sgcocaller`, phasing and crossover calling.
-`sgcocalelr phase` generate donor haplotype from single-gamete DNA sequencing data.
+`sgcocaller phase` generates donor haplotype from single-gamete DNA sequencing data.
  `sgcocaller xo` and `sgcocaller sxo` both call crossovers in each single 
  gamete using a Hidden Markov Model.
 
@@ -22,7 +22,7 @@ sequence for the list of SNP markers.
 ## Inputs
 
 - Bam, sorted and index bam file which contains DNA reads of single gamete cells 
-with `CB` tag, eg. from single-cell preprocessing pipeline (cellranger)
+with `CB` tag, eg. from single-cell preprocessing pipeline (CellRanger, STARSolo, kallisto|bustools, alevin-fry, etc)
 - VCF, variant call file that contains the list of informative SNPs (phased or unphased SNPs)
 - barcodeFile, the list of cell barcodes of the gametes
 
@@ -98,7 +98,7 @@ Options:
 ```
 ### Run for single-cell DNA sequenced gametes with donor haplotype known 
 
-In cases where the haplotype of the donors is known (i.e the list of hetSNPs have been phased, or the donor is F1 hybrid sample), `sgcocaller xo` can be called directly:
+In cases where the haplotype of the donors is known (i.e the list of hetSNPs has been phased, or the donor is an F1 hybrid sample), `sgcocaller xo` can be called directly:
 
 For F1 hybrid donor:
 
