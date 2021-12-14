@@ -16,7 +16,7 @@ buildStatic:
   stage: buildStatic
   script:
     - /usr/local/bin/nsb -s ./src/sgcocaller.nim -n sgcocaller.nimble -o . -- --d:release --threads:on
-    - ls -l .
+    - ls -l ./src
   artifacts:
     paths:
       - ./sgcocaller
