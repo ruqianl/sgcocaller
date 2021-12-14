@@ -69,11 +69,11 @@ ENV PATH=$PATH:~/.cargo/bin/
 
 ADD . /src/
 
-RUN nimble install -y https://gitlab.svi.edu.au/biocellgen-public/sscocaller.git
+RUN nimble install -y https://gitlab.svi.edu.au/biocellgen-public/sgcocaller.git
 
 RUN ls ~/.nimble/lib/
 ENV LD_LIBRARY_PATH=:/root/.nimble/lib/:/usr/local/lib/:$LD_LIBRARY_PATH
 
-RUN cp /root/.nimble/bin/sscocaller /usr/bin/
+RUN cp /root/.nimble/bin/sgcocaller /usr/bin/
 
-RUN /usr/bin/sscocaller
+RUN /usr/bin/sgcocaller
