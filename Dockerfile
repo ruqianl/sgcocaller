@@ -67,7 +67,7 @@ RUN \
 ENV HTSLIB=system
 ENV PATH=$PATH:~/.cargo/bin/
 
-RUN
+RUN \
     git clone https://gitlab.svi.edu.au/biocellgen-public/sgcocaller.git && \
     cd sgcocaller && \
     nimble install .
