@@ -19,7 +19,7 @@ buildStatic:
     - ls -l .
   artifacts:
     paths:
-      - sgcocaller
+      - ./sgcocaller
 
 testUbuntu:
   tags:
@@ -27,7 +27,7 @@ testUbuntu:
   image: ubuntu
   stage: testStatic
   script:
-    - sgcocaller -h
+    - ./sgcocaller -h
 
 testDebian:
   tags:
@@ -35,12 +35,12 @@ testDebian:
   image: debian
   stage: testStatic
   script:
-    - sgcocaller -h
+    - ./sgcocaller -h
 
 testRedHat:
   stage: testStatic
   script:
-    - sgcocaller -h
+    - ./sgcocaller -h
 
 
 ## shell executer    
@@ -55,7 +55,7 @@ testAlpine:
   image: alpine
   stage: testStatic
   script:
-  - sgcocaller -h
+  - ./sgcocaller -h
 
 
 
