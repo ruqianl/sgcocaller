@@ -5,16 +5,16 @@ import strutils
 import hts
 import tables
 import sequtils
-import private/utils
+import sgcocaller/utils
 import math
 import streams
-import private/graph
-import private/findPath
-import private/getGtMtx
-import private/sgphase
-import private/writeVCF
-import private/correctPhase
-import private/sgcocaller_sxo
+import sgcocaller/graph
+import sgcocaller/findPath
+import sgcocaller/getGtMtx
+import sgcocaller/sgphase
+import sgcocaller/writeVCF
+import sgcocaller/correctPhase
+import sgcocaller/sgcocaller_sxo
 
 
 let initProb:array[stateRef..stateAlt, float]=[0.5,0.5]
