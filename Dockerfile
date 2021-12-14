@@ -66,7 +66,6 @@ RUN \
 
 ENV HTSLIB=system
 ENV PATH=$PATH:~/.cargo/bin/
-
 #ADD . /src/
 
 RUN nimble install -y https://github.com/ruqianl/sgcocaller.git

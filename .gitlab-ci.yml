@@ -15,7 +15,7 @@ buildStatic:
   image: svirlyu/sscocaller_nsb
   stage: buildStatic
   script:
-    - /usr/local/bin/nsb -s sgcocaller.nim -n sgcocaller.nimble -o . -- --d:release --threads:on
+    - /usr/local/bin/nsb -s ./src/sgcocaller.nim -n sgcocaller.nimble -o . -- --d:release --threads:on
     - ls -l .
   artifacts:
     paths:
