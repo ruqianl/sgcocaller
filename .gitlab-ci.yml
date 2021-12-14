@@ -1,0 +1,69 @@
+
+stages:
+  - buildStatic
+  - testStatic 
+variables:
+
+before_script:
+
+
+#alpine
+#
+buildStatic:
+  tags: 
+    - docker
+  image: svirlyu/sscocaller_nsb
+  stage: buildStatic
+  script:
+    - /usr/local/bin/nsb -s ./src/sgcocaller.nim -n sgcocaller.nimble -o . -- --d:release --threads:on
+    - ls -l ./src
+  artifacts:
+    paths:
+      - ./src/sgcocaller
+
+testUbuntu:
+  tags:
+    - docker
+  image: ubuntu
+  stage: testStatic
+  script:
+    - ./src/sgcocaller -h
+
+testDebian:
+  tags:
+    - docker
+  image: debian
+  stage: testStatic
+  script:
+    - ./src/sgcocaller -h
+
+testRedHat:
+  stage: testStatic
+  script:
+    - ./src/sgcocaller -h
+
+
+## shell executer    
+##testFunction:
+##  stage: testStatic
+##  script:
+##    - sh tests/test.sh
+
+testAlpine:
+  tags:
+    - docker
+  image: alpine
+  stage: testStatic
+  script:
+  - ./src/sgcocaller -h
+
+
+
+
+#release:
+#i  tag_name: $CI_COMMIT_TAG
+#  script:
+#    -  echo "create static build"
+#  image: registry.gitlab.com/gitlab-org/release-cli:latest
+
+
