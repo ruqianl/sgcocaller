@@ -15,11 +15,11 @@ buildStatic:
   image: svirlyu/sscocaller_nsb
   stage: buildStatic
   script:
-    - /usr/local/bin/nsb -s ./src/sgcocaller.nim -n sgcocaller.nimble -o ./src -- --d:release --threads:on
+    - /usr/local/bin/nsb -s ./src/sgcocaller.nim -n sgcocaller.nimble -o ../ -- --d:release --threads:on
     - ls -l ./src
   artifacts:
     paths:
-      - ./src/sgcocaller
+      - ./sgcocaller
 
 testUbuntu:
   tags:
