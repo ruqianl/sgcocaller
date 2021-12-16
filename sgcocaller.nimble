@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.3.3"
+version       = "0.3.4"
 author        = "Ruqian Lyu"
 description   = "sgcocaller: calling crossovers from single-gamete DNA sequencing datasets"
 license       = "MIT"
