@@ -6,8 +6,8 @@ import streams
 # bins of SNP indexes
 import strutils
 
-let binSize = 2000
-let movingStep = 200
+# let binSize = 2000
+# let movingStep = 200
 let dissimThresh = 0.0099 
 #let lookBeyondSnps = 25
 let debug = false
@@ -47,7 +47,7 @@ proc hasCrossover(templ_geno:seq[BinaryGeno], cell_geno: seq[seq[BinaryGeno]]): 
     if debug: echo "bin had many crossovers : " & $nxcells
     return true
 
-proc findHighRiskSnps(fullGeno:seq[BinaryGeno], gtMtxByCell:seq[seq[BinaryGeno]]): seq[int] = 
+proc findHighRiskSnps(fullGeno:seq[BinaryGeno], gtMtxByCell:seq[seq[BinaryGeno]], binSize:int, movingStep:int): seq[int] = 
   #let ncells = gtMtxByCell[0].len
   let nSnps = gtMtxByCell.len
   let nBins = (int)(ceil(nSnps / (binSize - movingStep)))
@@ -65,8 +65,7 @@ proc findHighRiskSnps(fullGeno:seq[BinaryGeno], gtMtxByCell:seq[seq[BinaryGeno]]
     if (hasCrossover(templ_geno =  fullGeno[snpPosStart..snpPosEnd], 
                      cell_geno =  gtMtxByCell[snpPosStart..snpPosEnd] )):
       highRiskSnps = concat(highRiskSnps,toSeq(snpPosStart..snpPosEnd))
-
-    
+  
   # add a last bin as from end of chrom with length binSize
   let lastBinStart = nSnps - binSize
   let lastBinEnd = nSnps - 1
@@ -236,7 +235,7 @@ proc writeSwitchedPhase(siteToSwitch:seq[int],switchedPhasedAnnotFile:string, ph
   phaseSnpAnnotFileFS.close()
   return 0
 
-proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAnnotFile:string, switchScoreFile: string, lookBeyondSnps = 25,minSwitchScore:float, minPositiveSwitchScores:int): int = 
+proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAnnotFile:string, switchScoreFile: string, lookBeyondSnps = 25,minSwitchScore:float, minPositiveSwitchScores:int, binSize:int, stepSize:int): int = 
   var gtMtxByCell: seq[seq[BinaryGeno]]
   var currentEntrySeq: seq[string]
   var currentEntry:seq[int]
@@ -265,8 +264,8 @@ proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAn
   gtMtxByCell = newSeqWith(nSnps,newSeq[BinaryGeno](ncells))
   discard readGtMtxToSeq(mtxFileStream = gtMtxFileStream, gtMtx = gtMtxByCell, by_cell = true)
   var fullGeno = readPhasedSnpAnnot(phasedSnpAnnotFileStream = phaseSnpAnnotFileStream, nSnps = nSnps )
-  var riskySnps = findHighRiskSnps(fullGeno = fullGeno, gtMtxByCell = gtMtxByCell)
-  echo "riskySnps.len " & $riskySnps.len
+  var riskySnps = findHighRiskSnps(fullGeno = fullGeno, gtMtxByCell = gtMtxByCell, binSize = binSize, movingStep = stepSize)
+  echo "riskySnps.length " & $riskySnps.len
   var switchScoresT = calSwitchScore(riskySnps = riskySnps, gtMtxByCell =gtMtxByCell, fullGeno = fullGeno, lookBeyondSnps = lookBeyondSnps)
   let switchSites = findSwitchSites(switchScoresT, lookBeyondSnps = lookBeyondSnps,minSwitchScore = minSwitchScore, minPositiveSwitchScores = minPositiveSwitchScores)
   switchScoreFileStream.writeLine("#" & $switchSites)

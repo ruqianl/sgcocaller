@@ -91,7 +91,7 @@ proc sgcocaller(threads:int, ivcf:VCF, barcodeTable:TableRef,
   return 0
 
 when(isMainModule):
-  let version = "0.3.4"
+  let version = "0.3.5"
   var doc = format("""
   $version
   Usage:
@@ -140,6 +140,8 @@ Options:
   --lookBeyondSnps <lookBeyondSnps>  the number of local SNPs to use when finding switch positions [default: 25]
   --minSwitchScore <minSwitchScore>  the minimum switch score for a site to be identified as having a switch error in the inferred haplotype  [default: 50.0]
   --minPositiveSwitchScores <minPositiveSwitchScores>  the min number of continuing SNPs with positive switch scores to do switch error correction [default: 8]  
+  --binSize <binSize>  the size of SNP bins for scanning swith errors, users are recommended to increase this option when SNP density is high. [default 2000]
+  --stepSize <stepSize>  the move step size used in combination with --binSize. [default 200]
   -h --help  show help
 
 
@@ -153,7 +155,7 @@ Options:
   let args = docopt(doc, version=version)
   
   var
-    threads,mapq,minbsq,mintotal,maxtotal,mindp,maxdp,minsnpdepth,maxExpand,lookBeyondSnps,minPositiveSwitchScores:int
+    threads,mapq,minbsq,mintotal,maxtotal,mindp,maxdp,minsnpdepth,maxExpand,lookBeyondSnps,minPositiveSwitchScores,binSize,stepSize:int
     thetaREF,thetaALT,cmPmb,posteriorProbMin,maxDissim,minSwitchScore:float
     barcodeTag="CB"
     out_dir,selectedChrs,barcodeFile,bamfile,vcff:string
@@ -173,6 +175,8 @@ Options:
   minbsq = parse_int($args["--baseq"])
   maxExpand = parse_int($args["--maxExpand"])
   lookBeyondSnps = parse_int($args["--lookBeyondSnps"])
+  binSize = parse_int($args["--binSize"])
+  stepSize = parse_int($args["--stepSize"])
   minPositiveSwitchScores =  parse_int($args["--minPositiveSwitchScores"])
   thetaRef = parse_float($args["--thetaREF"])
   thetaAlt = parse_float($args["--thetaALT"])
@@ -291,7 +295,7 @@ Options:
     let switchedPhasedAnnotFile = out_dir & "corrected_phased_snpAnnot.txt"
     let switchScoreFile = out_dir & "switch_score.txt" 
     let switchedPhasedAnnotVcfFile  = out_dir & "corrected_phased_snpAnnot.vcf.gz"
-    discard correctPhase(gtMtxFile,phasedSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile,lookBeyondSnps = lookBeyondSnps,minSwitchScore = minSwitchScore, minPositiveSwitchScores = minPositiveSwitchScores)
+    discard correctPhase(gtMtxFile,phasedSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile,lookBeyondSnps = lookBeyondSnps,minSwitchScore = minSwitchScore, minPositiveSwitchScores = minPositiveSwitchScores, binSize = binSize, stepSize = stepSize)
     if ($args["--chrom"] == "nil"):
       echo "Assuming supplied VCF only contains the SNPs for the relevant chromosome. If this is not the case, use --chrom option"
     
