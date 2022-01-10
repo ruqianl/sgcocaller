@@ -140,8 +140,8 @@ Options:
   --lookBeyondSnps <lookBeyondSnps>  the number of local SNPs to use when finding switch positions [default: 25]
   --minSwitchScore <minSwitchScore>  the minimum switch score for a site to be identified as having a switch error in the inferred haplotype  [default: 50.0]
   --minPositiveSwitchScores <minPositiveSwitchScores>  the min number of continuing SNPs with positive switch scores to do switch error correction [default: 8]  
-  --binSize <binSize>  the size of SNP bins for scanning swith errors, users are recommended to increase this option when SNP density is high. [default 2000]
-  --stepSize <stepSize>  the move step size used in combination with --binSize. [default 200]
+  --binSize <binSize>  the size of SNP bins for scanning swith errors, users are recommended to increase this option when SNP density is high. [default: 2000]
+  --stepSize <stepSize>  the move step size used in combination with --binSize. [default: 200]
   -h --help  show help
 
 
