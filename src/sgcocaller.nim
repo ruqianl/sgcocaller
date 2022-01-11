@@ -91,7 +91,7 @@ proc sgcocaller(threads:int, ivcf:VCF, barcodeTable:TableRef,
   return 0
 
 when(isMainModule):
-  let version = "0.3.5"
+  let version = "0.3.6"
   var doc = format("""
   $version
   Usage:
