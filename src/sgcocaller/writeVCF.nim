@@ -22,7 +22,6 @@ proc writePhaseToVCF*(ivcfFile:string, ovcfFile: string, phasedAnnotFile: string
   if debug: echo "ivcffile " & ivcfFile
   if debug: echo "ovcfFile " & ovcfFile
   if debug: echo "phasedAnnotFile " & phasedAnnotFile
-  
   var ivcf: VCF
   var ovcf: VCF
   var v_off = 0
@@ -72,10 +71,10 @@ proc writePhaseToVCF*(ivcfFile:string, ovcfFile: string, phasedAnnotFile: string
         quit "write vcf failed for " & $voff
       if phasedAnnotFS.atEnd(): break 
       phaseRec = readNextPhased(phasedAnnotFS)
-      if debug:
-        if phaseRec.len != 4: 
-          echo " phaseRec.len " &  $phaseRec.len
-          echo " phaseRec" & $phaseRec
+      # if debug:
+      #   if phaseRec.len != 4: 
+      #     echo " phaseRec.len " &  $phaseRec.len
+      #     echo " phaseRec" & $phaseRec
       phasePos = parseInt(phaseRec[0])
       phasePhase = parseInt(phaseRec[3])
   phasedAnnotFS.close()
@@ -83,17 +82,4 @@ proc writePhaseToVCF*(ivcfFile:string, ovcfFile: string, phasedAnnotFile: string
   ivcf.close()
   
   return 0
-
-# let s_Chrs = map(toSeq(1..19), proc(x:int):string =  "chr" & $x)
-# for chrom in @["chr8"]:
-#   var ivcf = "data/swapped/FVB_NJ.mgp.v5.snps.dbSNP142.homo.alt.modified.swapped.GT." & chrom & ".vcf.gz"
-#   var ovcf = "data/WC_CNV_42/sgcocaller/swphase/" & chrom & "_corrected_phased_snpAnnot.vcf.gz"
-#   var swphasedSnpFile = "data/WC_CNV_42/sgcocaller/swphase/" & chrom & "_corrected_phased_snpAnnot.txt"
-#   var gtMtxFile =  "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_gtMtx.mtx"
-#   var phaseSnpAnnotFile = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_phased_snpAnnot.txt"
-#   var switchScoreFile ="data/WC_CNV_42/sgcocaller/swphase/" & chrom & "_switch_score.txt" 
-#   var switchedPhasedAnnotVcfFile  = "data/WC_CNV_42/sgcocaller/swphase/" & chrom & "_corrected_phased_snpAnnot.vcf.gz"
-#   discard correctPhase(gtMtxFile,phaseSnpAnnotFile,swphasedSnpFile,switchScoreFile)
-#   discard writePhaseToVCF(ivcf, ovcf, swphasedSnpFile,1)
-
 

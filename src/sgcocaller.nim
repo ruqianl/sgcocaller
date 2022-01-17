@@ -29,7 +29,7 @@ proc sgcocaller(threads:int, ivcf:VCF, barcodeTable:TableRef,
     echo "running in bulk mode and all reads are regarded as from one sample/cell"
     bulkBam = true
   else:
-    echo "running sgcoaller for " & $barcodeTable.len & " single cells"
+    echo "running sgcoaller xo for " & $barcodeTable.len & " single cells"
 
   ## iterate through each selected chromosome
   for chrom in s_Chrs:
@@ -132,7 +132,7 @@ Options:
   --thetaALT <thetaALT>  the theta for the binomial distribution conditioning on hidden state being ALT [default: 0.9]
   --cmPmb <cmPmb>  the average centiMorgan distances per megabases default 0.1 cm per Mb [default: 0.1]
   --phased  the input VCF for calling crossovers contains the phased GT of heterozygous SNPs
-  --outvcf  generate the output in vcf format (phase)  
+  --outvcf  generate the output in vcf format (sgcocaller phase)  
   --templateCell <templateCell>  the cell's genotype to be used a template cell, as the cell's index (0-starting) in the barcode file, default as not supplied [default: -1]
   --maxDissim <maxDissim>  the maximum dissimilarity for a pair of cell to be selected as potential template cells due to not having crossovers in either cell [default: 0.0099]
   --maxExpand <maxExpand>  the maximum number of iterations to look for locally coexisting positions for inferring missing SNPs in template haplotype sequence [default: 1000]
@@ -147,7 +147,7 @@ Options:
 
   Examples
       ./sgcocaller phase gtMtxFile phaseOutputPrefix
-      ./sgcocaller xo --threads 4 AAAGTAGCACGTCTCT-1.raw.bam AAAGTAGCACGTCTCT-1.raw.bam.dp3.alt.vcf.gz barcodeFile.tsv ./percell/ccsnp
+      ./sgcocaller xo --threads 4 possorted_bam.bam phased_hetSNPs.vcf.gz barcodeFile.tsv ./percell/ccsnp
       ./sgcocaller sxo phaseOutputPrefix barcodeFile.tsv ./percell/ccsnp
 
 """ % ["version", version])
@@ -248,8 +248,8 @@ Options:
           for mtxFile in [outGtMtxFile, outTotalCountMtxFile, outAltCountMtxFile]:
             var imtx = readMtx(mtx_file = mtxFile)
             discard sortWriteMtx(imtx, mtx_file = mtxFile) 
-          echo "running phasing from single cell genotype matrix (one chromosome) " & outGtMtxFile
-          echo "using the " & outSnpAnnotFile & "for generating phased haplotypes"
+          echo "running sgcocaller phase from single cell genotype matrix (of one chromosome) " & outGtMtxFile
+          echo "using the " & outSnpAnnotFile & " for generating phased haplotypes"
           discard sgphase(mtxFile = outGtMtxFile, snpAnnotFile = outSnpAnnotFile, phasedSnpAnnotFile = outphasedSnpAnnotFile,
                           diagnosticDataframeFile = outdiagnosticDataframeFile, templateCell = templateCell, 
                           maxExpand = maxExpand, posteriorProbMin = posteriorProbMin,maxDissim = maxDissim)
@@ -276,8 +276,8 @@ Options:
         selectedChrs = $args["--chrom"]
         s_Chrs = selectedChrs.split(',')
       else:
-        quit "chromosomes need to be supplied via --chrom. Supply multiple chromosomes using comma as separator"
-      echo "running crossover calling from genotype and allele count matrices generate from sgcocaller phase/swphase "
+        quit "chromosomes need to be supplied via --chrom. Supply multiple chromosomes (will be processed sequencially) using comma as separator"
+      echo "running crossover calling from genotype and allele count matrices generated from sgcocaller phase/swphase "
       echo "running for these chromosomes : " & $s_Chrs
       let phase_dir = $args["<phaseOutputPrefix>"]
       let phasedSnpAnnotFile = $args["<SNPPhaseFile>"]
@@ -289,7 +289,7 @@ Options:
           var imtx = readMtx(mtx_file = mtxFile)
           discard sortWriteMtx(imtx, mtx_file = mtxFile)
   elif args["swphase"]:
-    echo "find switch spots and generate corrected phase"
+    echo "running swphase to find switch spots and generate corrected phase"
     let gtMtxFile =  $args["<gtMtxFile>"]
     let phasedSnpAnnotFile = $args["<phasedSnpAnnotFile>"]
     let switchedPhasedAnnotFile = out_dir & "corrected_phased_snpAnnot.txt"
@@ -297,7 +297,7 @@ Options:
     let switchedPhasedAnnotVcfFile  = out_dir & "corrected_phased_snpAnnot.vcf.gz"
     discard correctPhase(gtMtxFile,phasedSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile,lookBeyondSnps = lookBeyondSnps,minSwitchScore = minSwitchScore, minPositiveSwitchScores = minPositiveSwitchScores, binSize = binSize, stepSize = stepSize)
     if ($args["--chrom"] == "nil"):
-      echo "Assuming supplied VCF only contains the SNPs for the relevant chromosome. If this is not the case, use --chrom option"
+      echo "Assuming supplied VCF only contains the SNPs for the relevant chromosome. If this is not the case, use the --chrom option"
     
     discard writePhaseToVCF($args["<referenceVCF>"], switchedPhasedAnnotVcfFile, switchedPhasedAnnotFile, add_header_string = """##sgcocaller_v0.1=swphase""",threads = threads, chrom = $args["--chrom"])
 

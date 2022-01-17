@@ -7,15 +7,6 @@ import streams
 import strutils
 import sequtils
 
-# phaseOutdir/chrom_phased_snpAnnot.txt
-# phaseOutdir/cellGenoVersusTemplate.txt
-# phaseOutdir/cellGenoVersusTemplate.png by executing the R code
-# let mtxFile = "/mnt/mcfiles/rlyu/Projects/sgcocaller/test_data/gtMtx_chr1_gtMtx.mtx"
-# let phaseOutdir = "/mnt/mcfiles/rlyu/Projects/sgcocaller/test_data/phase/"
-# #let diagnosticDataframe = "/mnt/mcfiles/rlyu/Projects/sgcocaller/test_data/phase/cellGenoVersusTemplate.txt"
-# let snpAnnotFile = "/mnt/mcfiles/rlyu/Projects/sgcocaller/test_data/gtMtx_chr1_snpAnnot.txt"
-
-
 proc writePhasedSnpAnnot*(fullGeno:seq[BinaryGeno], snpAnnotFileStream:FileStream, phasedSnpAnnotFileStream:FileStream): int = 
   var snpindex = 0
   var header: string
@@ -97,25 +88,3 @@ proc sgphase*(mtxFile: string, snpAnnotFile:string, phasedSnpAnnotFile:string, d
   discard writePhasedSnpAnnot(fullGeno, snpAnnotFileStream, phasedSnpAnnotFileStream)
   for fs in [gtMtxFileStream,ddframFileStream,snpAnnotFileStream,phasedSnpAnnotFileStream]:
     fs.close()
-
-
-
-
-
-# var s_Chrs = @["CUR6G"]
-
-# for chrom in s_Chrs:
-#   var mtxFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_" & chrom & "_gtMtx.mtx"
-#   var phasedSnpFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_"  & chrom & "_phased_snpAnnot.txt"
-#   var snpAnnotFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_"  & chrom & "_snpAnnot.txt"
-#   var ddframe = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Campoy2020-gamete-binning-apricot/output/sgcocaller/phaseOneStep/apricot_"  & chrom & "_cellGenoVersusTemplate.txt"
-  
-#   discard sgphase(mtxFile, snpAnnotFile, phasedSnpFile,ddframe)
-
-# for chrom in s_Chrs:
-#   var mtxFile = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_gtMtx.mtx"
-#   var phasedSnpFile = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_phased_snpAnnot.txt"
-#   var snpAnnotFile = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_snpAnnot.txt"
-#   var ddframe = "data/WC_CNV_42/sgcocaller/phaseOneStep/" & chrom & "_cellGenoVersusTemplate.txt"
-  
-#   discard sgphase(mtxFile, snpAnnotFile, phasedSnpFile,ddframe)

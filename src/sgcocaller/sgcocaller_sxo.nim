@@ -127,21 +127,3 @@ proc sgcocallerSXO*(barcodeTable:TableRef, phase_dir:string, out_dir:string, the
     for outFileStream in [phasedSnpannoFS,totalCountMtxFS,altCountMtxFS,outFileVStateMtx,outaltCountMtxFS,outSnpAnnotFS, outtotalCountMtxFS,viSegmentInfo]:
       outFileStream.close()
   return 0
-
-# let barcodeFile = "data/WC_CNV_42/WC_CNV_42_filteredBC.tsv"
-# var barcodeTable = newTable[string,int](initialSize = 1024)
-# var hf = hts.hts_open(cstring(barcodeFile), "r")
-# var kstr: hts.kstring_t
-# kstr.l = 0
-# kstr.m = 0
-# kstr.s = nil
-# var ithSperm = 0
-# ## initiate the table with CB as keys, gamete index as elements
-# while hts_getline(hf, cint(10), addr kstr) > 0:
-#   if $kstr.s[0] == "#": continue
-#   var v = $kstr.s
-#   discard barcodeTable.hasKeyOrPut(v, ithSperm)
-#   ithSperm.inc
-# discard hf.hts_close()
-# var s_Chrs = @["chr6"]
-# discard sgcocallerSXO(barcodeTable = barcodeTable, phase_dir = "data/WC_CNV_42/sgcocaller/phaseOneStep/", out_dir = "data/WC_CNV_42/sgcocaller/sxo/",thetaREF = 0.1, thetaALT = 0.9, cmPmb = 0.001,s_Chrs =s_Chrs,initProb = [0.5,0.5])

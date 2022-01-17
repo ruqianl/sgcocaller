@@ -12,7 +12,6 @@ import findGtNodes
 
 ## these outputs will be per chromosome
 
-
 proc getGtMtx*(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outGtMtx:FileStream, outSnpAnnot:FileStream, 
               outTotalCountMtx:FileStream, outAltCountMtx:FileStream,maxTotalReads:int,
               minTotalReads:int, mapq: int,minbsq:int, barcodeTag:string, minsnpdepth:int,minCellDp:int, maxCellDp:int,p0 = 0.3, p1 = 0.7,chrom: string):int = 
@@ -75,62 +74,3 @@ proc getGtMtx*(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outGtMtx:FileStream, o
   for outFileStream in[outGtMtx, outTotalCountMtx, outAltCountMtx, outSnpAnnot]:
     outFileStream.close()
   return 0
-
-# let vcf_file = "data/swapped/FVB_NJ.mgp.v5.snps.dbSNP142.homo.alt.modified.swapped.GT.chr1.vcf.gz"
-# let bam_file = "data/WC_CNV_42/WC_CNV_42.bam"
-# let barcode_file = "data/WC_CNV_42/WC_CNV_42_filteredBC.tsv"
-# var
-#   ibam:Bam
-#   ivcf:VCF
-#   outGtMtx, outSnpAnnot, outTotalCountMtx, outAltCountMtx:FileStream
-# if not open(ibam, bam_file, threads=1, index = true):
-#     quit "couldn't open input bam"
-# if not open(ivcf, vcf_file, threads=1):
-#     quit "couldn't open: vcf file"
-
-# var hf = hts.hts_open(cstring(barcode_file), "r")
-# #### TODO : Table size
-# var barcodeTable =  newTable[string,int](initialSize = 1024)
-# var kstr: hts.kstring_t
-# kstr.l = 0
-# kstr.m = 0
-# kstr.s = nil
-# var ithSperm = 0
-# ## initiate the table with CB as keys, allele counts (ref object) as elements
-# while hts_getline(hf, cint(10), addr kstr) > 0:
-#   if $kstr.s[0] == "#":
-#     continue
-#   var v = $kstr.s
-#   discard barcodeTable.hasKeyOrPut(v, ithSperm)
-#   ithSperm.inc
-# discard hf.hts_close()
-
-# let s_Chrs = @["chr1"]
-# var chrom = "chr1"
-# let out_prefix = "test_data/getMtx/"
-# echo "generating gtMtx"
-# try: 
-#   outGtMtx = openFileStream(out_prefix & chrom &  "_gtMtx.mtx", fmWrite)
-#   outSnpAnnot = openFileStream(out_prefix & chrom &  "_snpAnnot.txt", fmWrite)
-#   outTotalCountMtx = openFileStream(out_prefix & chrom &  "_totalMtx.mtx", fmWrite)
-#   outAltCountMtx = openFileStream(out_prefix & chrom &  "_AltMtx.mtx", fmWrite)
-# except:
-#   stderr.write getCurrentExceptionMsg()
-
-
-# discard getGtMtx(ibam = ibam, ivcf = ivcf, barcodeTable = barcodeTable, outGtMtx = outGtMtx, outTotalCountMtx = outTotalCountMtx ,outAltCountMtx = outAltCountMtx,
-#                  outSnpAnnot = outSnpAnnot, maxTotalReads = 30,
-#                  minTotalReads = 5, mapq = 20, minbsq = 13, minCellDp = 2,maxCellDp =10,barcodeTag = "CB",minsnpdepth=1)
-
-
-# var outGtMtxFile, outTotalCountMtxFile,outAltCountMtxFile : string
-
-# ## sort entries in mtx files 
-# for chrom in s_Chrs:
-#   outGtMtxFile = out_prefix & chrom & "_gtMtx.mtx"
-#   outTotalCountMtxFile = out_prefix & chrom &  "_totalMtx.mtx"
-#   outAltCountMtxFile = out_prefix & chrom &  "_AltMtx.mtx"
-#   for mtxFile in [outGtMtxFile, outTotalCountMtxFile,outAltCountMtxFile]:
-#     var imtx = readMtx(mtx_file = mtxFile)
-#     discard sortWriteMtx(imtx, mtx_file = mtxFile)
-

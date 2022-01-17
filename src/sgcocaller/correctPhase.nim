@@ -3,7 +3,6 @@ import utils
 import sequtils
 import math
 import streams
-# bins of SNP indexes
 import strutils
 
 # let binSize = 2000
@@ -34,29 +33,29 @@ proc hasCrossover(templ_geno:seq[BinaryGeno], cell_geno: seq[seq[BinaryGeno]]): 
       if g != gUnknown and cell_geno[snpi][cellj] != gUnknown:
         ncompared[cellj].inc
         if g == cell_geno[snpi][cellj]: nmatch[cellj].inc
-  if debug: echo "ncompared " & $ncompared      
+#  if debug: echo "ncompared " & $ncompared      
   let dissim = map(toSeq(0..(ncells-1)), proc(x:int):float =  nmatch[x]/ncompared[x])
-  if debug: echo "dissim " & $dissim
+#  if debug: echo "dissim " & $dissim
   var ncrossover = map(dissim, proc(x:float): int = (int)(x > dissimThresh and x < (1-dissimThresh)))
-  if debug: echo "ncrossover " & $ncrossover
+#  if debug: echo "ncrossover " & $ncrossover
   let nxcells = foldl(ncrossover, a + b)
   if nxcells < int(floor(0.5 * float(ncells))):
-    if debug: echo "bin had no crossovers : " & $nxcells
+#    if debug: echo "bin had no crossovers : " & $nxcells
     return false
   else:
-    if debug: echo "bin had many crossovers : " & $nxcells
+#    if debug: echo "bin had many crossovers : " & $nxcells
     return true
 
 proc findHighRiskSnps(fullGeno:seq[BinaryGeno], gtMtxByCell:seq[seq[BinaryGeno]], binSize:int, movingStep:int): seq[int] = 
   #let ncells = gtMtxByCell[0].len
   let nSnps = gtMtxByCell.len
   let nBins = (int)(ceil(nSnps / (binSize - movingStep)))
-  if debug: echo "nBins: " & $nBins
+#  if debug: echo "nBins: " & $nBins
   let binIds = toSeq(0..(nBins-1))
   var snpPosStart,snpPosEnd: int
   var highRiskSnps: seq[int]
   for binI in binIds:
-    if debug: echo "binI " & $binI
+#    if debug: echo "binI " & $binI
     snpPosStart = (binI)*(binSize - movingStep)
     if (snpPosStart + binSize) > (nSnps-1): 
       snpPosEnd = (nSnps-1)
@@ -180,7 +179,7 @@ proc findSwitchSites(switchScoreT: switchScoreTuple, lookBeyondSnps = 25, minSwi
   
   var inPositiveBlock = false
   for site, score in switchScoreT.switch_scores:
-    echo "site, " & $site & " score: " & $(score)
+#    echo "site, " & $site & " score: " & $(score)
     if switchScoreT.switch_scores_snpIndex.find(site)>=0:
       if score <= 0.0 or (switchScoreT.switch_scores_snpIndex.find(site) == (switchScoreT.switch_scores_snpIndex.len - 1)) :
         if inPositiveBlock:
@@ -248,7 +247,7 @@ proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAn
     switchScoreFileStream = openFileStream(switchScoreFile, fmWrite)
   except:
     stderr.write getCurrentExceptionMsg() 
-  echo "reading gtMtx to by cell"
+  echo "reading gtMtx by cell"
   discard gtMtxFileStream.readLine()
   discard phaseSnpAnnotFileStream.readLine()
   #N, i,j
@@ -258,7 +257,6 @@ proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAn
   echo "nSnps " & $nSnps
   ncells = currentEntry[1]
   echo "ncells " & $ncells
-
   echo "totalEntries " & $ currentEntry[2]
   ## gtMtx is cell by Snp format
   gtMtxByCell = newSeqWith(nSnps,newSeq[BinaryGeno](ncells))
@@ -277,10 +275,3 @@ proc correctPhase*(gtMtxFile: string, phaseSnpAnnotFile:string, switchedPhasedAn
   for fs in [gtMtxFileStream,phaseSnpAnnotFileStream,switchScoreFileStream]:
     fs.close()
   discard writeSwitchedPhase(switchSites,switchedPhasedAnnotFile,phaseSnpAnnotFile)
-
-# for chrom in @["chr5"]:    
-#   let gtMtxFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseOneStep/hsperm_" & chrom & "_gtMtx.mtx"
-#   let phaseSnpAnnotFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseOneStep/hsperm_" & chrom & "_phased_snpAnnot.txt"
-#   let switchedPhasedAnnotFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseCorrected/hsperm_" & chrom & "_corrected_phased_snpAnnot.txt"
-#   let switchScoreFile = "/mnt/beegfs/mccarthy/scratch/general/Datasets/Kirkness2013/output/boostrapping_9/sgcocaller/phaseCorrected/hsperm_" & chrom & "_switch_score.txt"  
-#   discard correctPhase(gtMtxFile,phaseSnpAnnotFile,switchedPhasedAnnotFile,switchScoreFile,lookBeyondSnps = 150,minSwitchScore = 280.0, minPositiveSwitchScores = 25)
