@@ -53,13 +53,11 @@ Arguments:
 
   <BAM> the read alignment file with records of single-cell DNA reads
 
-  <VCF> the variant call file with records of SNPs
+  <VCF> the variant call file with records of SNPs with hetSNPs phased in the form of REF/ALT or the GT field
 
   <barcodeFile> the text file containing the list of cell barcodes
 
   <out_prefix>  the prefix of output files
-
-  <fmf> the fragment file from running sgcocaller fmf
 
   <out_vcf> the output vcf aftering phasing blocks in hapfile
 
