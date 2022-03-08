@@ -12,7 +12,11 @@ later be used for identifying crossovers through finding haplotype shifts (see [
 It takes the large bam file which contains all aligned DNA reads from gamete cells and 
 summarizes allele counts for the provided informative SNP markers. While counting
 the alleles, the Viterbi algorithm is executed for finding the haplotype 
-sequence for the list of SNP markers.
+sequence for the list of SNP markers. 
+
+### Publication
+
+![BioRxiv paper](https://www.biorxiv.org/content/10.1101/2022.02.10.479822v1)
 
 ![sgcocaller_fig](images/sgcocaller_fig.png)
 
