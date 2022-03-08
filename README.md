@@ -63,9 +63,6 @@ Arguments:
 
   <out_prefix>  the prefix of output files
 
-  <out_vcf> the output vcf aftering phasing blocks in hapfile
-
-
 Options:
   -t --threads <threads>  number of BAM decompression threads [default: 4]
   --barcodeTag <barcodeTag>  the cell barcode tag in BAM [default: CB]
