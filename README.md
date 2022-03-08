@@ -16,7 +16,7 @@ sequence for the list of SNP markers.
 
 ### Publication
 
-![BioRxiv paper](https://www.biorxiv.org/content/10.1101/2022.02.10.479822v1)
+[BioRxiv paper](https://www.biorxiv.org/content/10.1101/2022.02.10.479822v1)
 
 ![sgcocaller_fig](images/sgcocaller_fig.png)
 
