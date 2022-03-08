@@ -26,7 +26,7 @@ sequence for the list of SNP markers.
 ## Inputs
 
 - Bam, sorted and index bam file which contains DNA reads of single gamete cells 
-with `CB` tag, eg. from single-cell preprocessing pipeline (CellRanger, STARSolo, kallisto|bustools, alevin-fry, etc)
+with `CB` tag, eg. from single-cell preprocessing pipeline (CellRanger, STARSolo, etc)
 - VCF, variant call file that contains the list of informative SNPs (phased or unphased SNPs)
 - barcodeFile, the list of cell barcodes of the gametes
 
