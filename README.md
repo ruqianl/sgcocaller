@@ -214,7 +214,7 @@ The built package is located at $HOME/.nimble/bin/sgcocaller
 
 The output files from `sgcocaller` can be directly parsed into R for construction of individual genetic maps using the R package `comapr` available from github.com/ruqianl/comapr
 
-A complete analysis workflow can be accessed [here](https://biocellgen-public.svi.edu.au/hinch-single-gamete-DNA-seq-processing/Crossover-identification-with-sscocaller-and-comapr.html).
+A complete analysis workflow can be accessed [here](https://biocellgen-public.svi.edu.au/hinch-single-sperm-DNA-seq-processing/Crossover-identification-with-sscocaller-and-comapr.html).
 
 
 ## References
