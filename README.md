@@ -31,17 +31,18 @@ with `CB` tag, eg. from single-cell preprocessing pipeline (CellRanger, STARSolo
 - barcodeFile, the list of cell barcodes of the gametes
 
 ## Main outputs from sgcocaller phase
+
 * *phased_snpAnnot.txt
-  *_phased_snpAnnot.vcf.gz (if --outvcf)
-  *_totalMtx.mtx
-  *_altMtx.mtx
-  *_gtMtx.mtx
+  * _phased_snpAnnot.vcf.gz (if --outvcf)
+  * _totalMtx.mtx
+  * _altMtx.mtx
+  * _gtMtx.mtx
 
 ## Main outputs from sgcocaller swphase (or sgcocaller autophase)
 * *cellGenoVersusTemplate.txt
-  *_corrected_phased_snpAnnot.txt
-  *_corrected_phased_snpAnnot.vcf.gz
-  *_switch_score.txt
+  * _corrected_phased_snpAnnot.txt
+  * _corrected_phased_snpAnnot.vcf.gz
+  * _switch_score.txt
 
 ## Main outputs from sgcocaller xo
 
@@ -121,7 +122,7 @@ Options:
       ./sgcocaller phase possorted_bam.bam hetSNPs.vcf.gz barcodeFile.tsv phaseOutputPrefix
       ./sgcocaller xo --threads 4 possorted_bam.bam phased_hetSNPs.vcf.gz barcodeFile.tsv ./percell/ccsnp
       ./sgcocaller sxo snp_phase.txt phaseOutputPrefix barcodeFile.tsv ./percell/ccsnp
-      
+
 ```
 ### Run for single-cell DNA sequenced gametes with donor haplotype known 
 
