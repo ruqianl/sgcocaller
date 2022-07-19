@@ -37,11 +37,11 @@ proc inferGeno(type00:int, type10:int, error_rate = 0.1,posterior_thresh: float)
   let prob_1_p = 1 - prob_0_p 
   if max(prob_0_p,prob_1_p) >= posterior_thresh:
 #    echo "posterior_prob: " & $(max(prob_0_p,prob_1_p))
-    if prob_0_p > prob_1_p:
-#      echo "returned inferred geno: gREF"
+    if prob_0_p > prob_1_p: 
+      # "returned inferred geno: gREF"
       return gREF
     else:
-#      echo "returned inferred geno: gALT"
+      #"returned inferred geno: gALT"
       return gALT
   return gUnknown
 # return full sequence of template geno by inferring missing SNPs's genotypes 
@@ -75,7 +75,7 @@ proc inferSnpGeno*(templateGeno: seq[BinaryGeno], gtMtx:seq[seq[BinaryGeno]], po
         offset += 1
         totalIter += 1
       if coexisPos.len < int(nAnchorSnps/2):
-        if debug: echo "not enough coexisting SNPs for jth cell: " & $j 
+#        if debug: echo "not enough coexisting SNPs for jth cell: " & $j 
         continue
       snpLD = matchTemplateHap(cell_geno = map(coexisPos,proc(x:int): BinaryGeno =  gtMtx[j][x]), 
                                temp_geno = map(coexisPos,proc(x:int): BinaryGeno =  templateGeno[x]) )       

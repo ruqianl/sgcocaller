@@ -30,9 +30,7 @@ proc getGtMtx*(ibam:Bam, ivcf:VCF, barcodeTable:TableRef, outGtMtx:FileStream, o
   for rec in ivcf.query(chrom): 
     var rec_alt = rec.ALT[0][0]
     var rec_ref = rec.REF[0]
-    cellGtNodes = findGtNodes(rec=rec, variantIndex = variantIndex, ibam=ibam, maxTotalReads=maxTotalReads,
-                                  minTotalReads=minTotalReads, mapq = mapq, barcodeTable = barcodeTable,
-                                  minbsq=minbsq,barcodeTag=barcodeTag)
+    cellGtNodes = findGtNodes(rec=rec, variantIndex = variantIndex, ibam=ibam, maxTotalReads=maxTotalReads,minTotalReads=minTotalReads, mapq = mapq, barcodeTable = barcodeTable,minbsq=minbsq,barcodeTag=barcodeTag)
     cellGtNodeCopy = cellGtNodes
     for cellbarcode in cellGtNodeCopy.keys:
       cellDP = cellGtNodes[cellbarcode].alleles.len

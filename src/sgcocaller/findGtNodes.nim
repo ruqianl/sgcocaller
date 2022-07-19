@@ -31,7 +31,7 @@ proc findGtNodes*(rec:Variant, variantIndex: int, ibam:Bam, maxTotalReads:int, m
     if not barcodeTable.hasKey(currentCB): 
       continue
     base_off = get_base_offset(position = rec.POS.cint, align = aln) 
-    base = aln.base_at(base_off)
+    base = aln.base_at(base_off)   
     if aln.base_quality_at(base_off).cint < minbsq: 
       continue
     total_reads+=1

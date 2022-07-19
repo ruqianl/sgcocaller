@@ -9,16 +9,16 @@ import sequtils
 
 type 
   allele_expr* = ref object
-    cref*: int
-    calt*: int
+    cref*: int16
+    calt*: int16
   ViState* = enum
     stateRef, stateAlt, stateN
   BinaryGeno* = enum
     gUnknown, gREF, gALT
   ViNode* = object
     pos*: int
-    cRef*: int
-    cAlt*: int
+    cRef*: int16
+    cAlt*: int16
     pathScore*: array[stateRef..stateAlt, float]
     pathState*: array[stateRef..stateAlt, ViState]      
     state*: ViState  
@@ -37,7 +37,7 @@ type
   MtxRow* = tuple
     rowIndex: int
     colIndex: int
-    value: int
+    value: int16
 type 
   Mtx* = ref object
     header*: string
@@ -70,10 +70,10 @@ proc get_base_offset*(position:int, align: Record): int =
     # get the base 
     base_offset = qoff - over-1
     break 
-  return base_offset   
+  return base_offset    
 
 
-proc toBinaryGeno*(x: int, format = "12") : BinaryGeno = 
+proc toBinaryGeno*(x: int8, format = "12") : BinaryGeno = 
   if(format == "01"):
     if x == 1: return gALT
     if x == 0: return gREF
@@ -88,15 +88,18 @@ proc toBinaryGeno*(x: int, format = "12") : BinaryGeno =
 proc readGtMtxToSeq*(mtxFileStream:FileStream, gtMtx:var seq[seq[BinaryGeno]], by_cell = false):int = 
   var currentEntrySeq:seq[int]
   var currentLine:seq[string]
-
-  while not mtxFileStream.atEnd():
-    currentLine = mtxFileStream.readLine().splitWhitespace()
-    ## i j 1-based from file
-    currentEntrySeq = map(currentLine, proc(x: string): int = parseInt(x))
-    if by_cell:
-      gtMtx[(currentEntrySeq[0]-1)][(currentEntrySeq[1]-1)] = currentEntrySeq[2].toBinaryGeno
-    else:
-      gtMtx[(currentEntrySeq[1]-1)][(currentEntrySeq[0]-1)] = currentEntrySeq[2].toBinaryGeno
+  if by_cell:
+    while not mtxFileStream.atEnd():
+      currentLine = mtxFileStream.readLine().splitWhitespace()
+      ## i j 1-based from file
+      currentEntrySeq = map(currentLine, proc(x: string): int = parseInt(x))
+      gtMtx[(currentEntrySeq[0]-1)][(currentEntrySeq[1]-1)] = int8(currentEntrySeq[2]).toBinaryGeno
+  else:
+    while not mtxFileStream.atEnd():
+      currentLine = mtxFileStream.readLine().splitWhitespace()
+      ## i j 1-based from file
+      currentEntrySeq = map(currentLine, proc(x: string): int = parseInt(x))
+      gtMtx[(currentEntrySeq[1]-1)][(currentEntrySeq[0]-1)] = int8(currentEntrySeq[2]).toBinaryGeno
   return 0
 
 proc add_allele*(g:GtNode, alleleBinGeno:int):string = g.alleles & $alleleBinGeno
@@ -105,7 +108,7 @@ proc inc_count_cref*(a:allele_expr) = inc(a.cref)
 proc inc_count_calt*(a:allele_expr) = inc(a.calt)
 
 proc getEmission*(thetaRef=0.1,thetaAlt=0.9,
-                  cRef:int,cAlt:int): array[stateRef..stateAlt, float] =
+                  cRef:int16,cAlt:int16): array[stateRef..stateAlt, float] =
   
   var emissionScore = [dbinom(x=float(cAlt),size=(cRef+cAlt),prob=thetaRef,log=true),
                         dbinom(x=float(cAlt),size=(cRef+cAlt),prob=thetaAlt,log=true)]
@@ -182,7 +185,7 @@ proc readMtx*(mtx_file:string): Mtx =
     current_line = mtxFileStream.readLine()
     sparseMtx.lines.add((rowIndex: parseInt(current_line.splitWhitespace()[0]),
                          colIndex: parseInt(current_line.splitWhitespace()[1]),
-                         value: parseInt(current_line.splitWhitespace()[2]) ))
+                         value: int16(parseInt(current_line.splitWhitespace()[2])) ))
   mtxFileStream.close()
 
   return sparseMtx

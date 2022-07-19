@@ -101,26 +101,25 @@ proc pathTrackBackIthSperm(currentSperm: var SpermViNodes,
       inferProb = currentEm[stateAlt]+math.ln(transProb)
       reverseProb = currentEm[stateRef]+math.ln(1-transProb)
       viSegmentInfo.writeLine(join(["ithSperm" & $ithSperm, $posStart, $posEnd, $(inferProb-reverseProb) ,$cSNP, "2"],sep = " ") )
-  
   return 0
-proc pathTrackBack*(scSpermSeq:  var SeqSpermViNodes,
+proc pathTrackBack*(scSpermSeq:  TableRef[int,SpermViNodes],
                     thetaRef: float,
                     thetaAlt: float,
                     cmPmb: float,
                     outFileVStateMtx: var FileStream,
                     viSegmentInfo: var FileStream): int = 
-
   var posEnd: int64
   var inferProb,reverseProb = 0.0
   var currentEm: array[stateRef..stateAlt, float]
   var lastNode: ViNode
-  var spermVNseq: SpermViNodes
+#  var spermVNseq: SpermViNodes
+# 0..(scSpermSeq.len-1)
+# rightGap,leftGap = [0.0,0.0]
+# spermVNseq = scSpermSeq[ithSperm]
   var ithSNP: int
-
-  for ithSperm in 0..(scSpermSeq.len-1):
-    ## rightGap,leftGap = [0.0,0.0]
-    spermVNseq = scSpermSeq[ithSperm]
-    if spermVNseq.viNodeseq.len==0: continue
+  for ithSperm,spermVNseq in scSpermSeq:
+    if spermVNseq.viNodeseq.len==0: 
+      continue
     lastNode = spermVNseq.viNodeseq[high(spermVNseq.viNodeseq)]
     currentEm = getEmission(thetaRef=thetaRef,thetaAlt=thetaAlt,cRef=lastNode.cRef, cAlt=lastNode.cAlt)
     if lastNode.pathScore[stateRef] > lastNode.pathScore[stateAlt]:

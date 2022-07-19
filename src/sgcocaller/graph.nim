@@ -13,10 +13,11 @@ type
     snpIndexLookUp*: Table[int,int]
     ## look up from current Sperm SNP index to SNPIndex  
     spermSnpIndexLookUp*: Table[int,int]
-  SeqSpermViNodes* = seq[SpermViNodes]
+# SeqSpermViNodes* = seq[SpermViNodes]
 
-proc addViNodeIthSperm*(scSpermSeq: var SeqSpermViNodes, cAlt: int, cRef: int, ithSperm:int, emissionArray: array[stateRef..stateAlt, float], snpIndex:int, initProb: array[stateRef..stateAlt, float], rec_pos:int,cmPmb:float): int = 
-  if scSpermSeq[ithSperm].viNodeseq.len==0:
+proc addViNodeIthSperm*(scSpermSeq: TableRef[int,SpermViNodes], cAlt: int16, cRef: int16, ithSperm:int, emissionArray: array[stateRef..stateAlt, float], snpIndex:int, initProb: array[stateRef..stateAlt, float], rec_pos:int,cmPmb:float): int = 
+  if not scSpermSeq.hasKey(ithSperm):
+    scSpermSeq[ithSperm] = SpermViNodes()
     var currentViNode = ViNode()
     currentViNode.pathScore[stateRef] = math.ln(initProb[stateRef])+emissionArray[stateRef]
     currentViNode.pathScore[stateAlt] = math.ln(initProb[stateAlt])+emissionArray[stateAlt]
@@ -26,7 +27,6 @@ proc addViNodeIthSperm*(scSpermSeq: var SeqSpermViNodes, cAlt: int, cRef: int, i
     currentViNode.pos = rec_pos
     currentViNode.cAlt = cAlt
     currentViNode.cRef = cRef
-    
     scSpermSeq[ithSperm].viNodeseq.add(currentViNode)
     scSpermSeq[ithSperm].snpIndexLookUp[snpIndex] = scSpermSeq[ithSperm].viNodeseq.len
     scSpermSeq[ithSperm].spermSnpIndexLookUp[scSpermSeq[ithSperm].viNodeseq.len] = snpIndex
@@ -65,7 +65,7 @@ proc addViNodeIthSperm*(scSpermSeq: var SeqSpermViNodes, cAlt: int, cRef: int, i
   return 0
 proc addViNode*(barcodeTable: TableRef, 
                alleleCountTable: Table[string,allele_expr],
-               scSpermSeq: var SeqSpermViNodes,
+               scSpermSeq: TableRef[int,SpermViNodes],
                outFileTotalCountMtx: var FileStream,
                outFileAltCountMtx: var FileStream,
                nnsize: var int,
@@ -80,13 +80,13 @@ proc addViNode*(barcodeTable: TableRef,
   for bc, ac in alleleCountTable.pairs:
     # ac.tostring(acs)
     ## mindp, maxdp, they are values per cell
-    if (ac.cref+ac.calt) <= mindp or (ac.cref+ac.calt) >= maxdp: continue        
+    if (ac.cref+ac.calt) < mindp or (ac.cref+ac.calt) > maxdp: continue        
     var ithSperm = barcodeTable[bc]
     ## write to mtx Ref count
     outFileTotalCountMtx.writeLine($snpIndex & " " & $(ithSperm+1) & " " & $(ac.cRef+ac.cAlt))
     outFileAltCountMtx.writeLine($snpIndex & " " & $(ithSperm+1) & " " & $ac.cAlt)
     nnsize += 1
     var emissionArray = getEmission(thetaRef=thetaRef,thetaAlt=thetaAlt,cRef=ac.cRef,cAlt=ac.cAlt)
-    discard addViNodeIthSperm(scSpermSeq = scSpermSeq, cAlt = int(ac.calt), cRef = int(ac.cref), ithSperm = ithSperm, emissionArray =emissionArray, snpIndex =snpIndex,initProb = initProb,rec_pos =rec_pos,cmPmb = cmPmb)
+    discard addViNodeIthSperm(scSpermSeq = scSpermSeq, cAlt = ac.calt, cRef = ac.cref, ithSperm = ithSperm, emissionArray =emissionArray, snpIndex =snpIndex,initProb = initProb,rec_pos =rec_pos,cmPmb = cmPmb)
   return 0
 # The size line  
