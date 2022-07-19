@@ -30,7 +30,20 @@ with `CB` tag, eg. from single-cell preprocessing pipeline (CellRanger, STARSolo
 - VCF, variant call file that contains the list of informative SNPs (phased or unphased SNPs)
 - barcodeFile, the list of cell barcodes of the gametes
 
-## Main outputs
+## Main outputs from sgcocaller phase
+* *phased_snpAnnot.txt
+  *_phased_snpAnnot.vcf.gz (if --outvcf)
+  *_totalMtx.mtx
+  *_altMtx.mtx
+  *_gtMtx.mtx
+
+## Main outputs from sgcocaller swphase (or sgcocaller autophase)
+* *cellGenoVersusTemplate.txt
+  *_corrected_phased_snpAnnot.txt
+  *_corrected_phased_snpAnnot.vcf.gz
+  *_switch_score.txt
+
+## Main outputs from sgcocaller xo
 
 * *.mtx
   * sparse matrix with columns corresponding to the list of gamete cell barcodes and rows corresponding to the list of SNP positions in VCF file
@@ -47,21 +60,29 @@ with `CB` tag, eg. from single-cell preprocessing pipeline (CellRanger, STARSolo
 
 ```
 
-Usage:
-      sgcocaller phase [options] <BAM> <VCF> <barcodeFile> <out_prefix>
-      sgcocaller swphase [options] <gtMtxFile> <phasedSnpAnnotFile> <referenceVCF> <out_prefix>
+  Usage:
+      sgcocaller autophase [options] <BAM> <VCF> <barcodeFile> <out_prefix>
+      sgcocaller phase [options] <BAM> <VCF> <barcodeFile> <out_prefix> 
+      sgcocaller swphase [options] <gtMtxFile> <phasedSnpAnnotFile> <referenceVCF> <out_prefix> 
       sgcocaller sxo [options] <SNPPhaseFile> <phaseOutputPrefix> <barcodeFile> <out_prefix>
       sgcocaller xo [options] <BAM> <VCF> <barcodeFile> <out_prefix>
+      
 
 Arguments:
 
   <BAM> the read alignment file with records of single-cell DNA reads
-
-  <VCF> the variant call file with records of SNPs with hetSNPs phased in the form of REF/ALT or the GT field
+  
+  <VCF> the variant call file with records of SNPs
 
   <barcodeFile> the text file containing the list of cell barcodes
 
   <out_prefix>  the prefix of output files
+
+  <out_vcf> the output vcf aftering phasing blocks in hapfile
+  
+  <gtMtxFile> the output gtMtx.mtx file from running sgcocaller phase
+
+  <phasedSnpAnnotFile>  the output phased_snpAnnot.txt from running sgcocaller phase
 
 Options:
   -t --threads <threads>  number of BAM decompression threads [default: 4]
@@ -78,22 +99,29 @@ Options:
   --thetaALT <thetaALT>  the theta for the binomial distribution conditioning on hidden state being ALT [default: 0.9]
   --cmPmb <cmPmb>  the average centiMorgan distances per megabases default 0.1 cm per Mb [default: 0.1]
   --phased  the input VCF for calling crossovers contains the phased GT of heterozygous SNPs
-  --outvcf  generate the output in vcf format (phase)
+  --outvcf  generate the output in vcf format (sgcocaller phase)  
   --templateCell <templateCell>  the cell's genotype to be used a template cell, as the cell's index (0-starting) in the barcode file, default as not supplied [default: -1]
   --maxDissim <maxDissim>  the maximum dissimilarity for a pair of cell to be selected as potential template cells due to not having crossovers in either cell [default: 0.0099]
   --maxExpand <maxExpand>  the maximum number of iterations to look for locally coexisting positions for inferring missing SNPs in template haplotype sequence [default: 1000]
-  --posteriorProbMin <posteriorProbMin>  the min posterior probability when inferring missing SNPs [default: 0.99]
+  --posteriorProbMin <posteriorProbMin>  the min posterior probability for inferring missing SNPs [default: 0.99]
   --lookBeyondSnps <lookBeyondSnps>  the number of local SNPs to use when finding switch positions [default: 25]
-  --minSwitchScore <minSwitchScore>  the minimum switch score for a site to be identified as having a switch error in the inferred haplotype and corrected [default: 50.0]
-  --minPositiveSwitchScores <minPositiveSwitchScores>  the min number of continuing SNPs with positive switch scores to do switch error correction [default: 8]
+  --minSwitchScore <minSwitchScore>  the minimum switch score for a site to be identified as having a switch error in the inferred haplotype  [default: 50.0]
+  --minPositiveSwitchScores <minPositiveSwitchScores>  the min number of continuing SNPs with positive switch scores to do switch error correction [default: 8]  
+  --binSize <binSize>  the size of SNP bins for scanning swith errors, users are recommended to increase this option when SNP density is high. [default: 2000]
+  --stepSize <stepSize>  the move step size used in combination with --binSize. [default: 200]
+  --dissimThresh <dissimThresh>  the threshold used on the allele concordance ratio for determining if a SNP bin contains a crossover. [default: 0.0099]
+  --batchSize <batchSize>  the number of cells to process in one batch when running sxo. This option is only needed when the memory is limited. 
+  --notSortMtx  do not sort the output mtx. 
+  --maxUseNcells <maxUseNcells>  the number of cells to use for calculating switch scores. All cells are used if not set
   -h --help  show help
 
 
   Examples
-      ./sgcocaller phase --threads 4 --barcodeTag CB --chrom 'chr1' --minDP 2 possorted_bam hetSNPs.vcf.gz barcodeFile.txt outdir/path/withPrefix_ 
-      ./sgcocaller xo --threads 4 possorted_bam.bam dbSNP-hetSNPs.vcf.gz barcodeFile.tsv ./percell/ccsnp
-      ./sgcocaller sxo phaseOutputPrefix barcodeFile.tsv ./percell/ccsnp
-
+      ./sgcocaller autophase possorted_bam.bam hetSNPs.vcf.gz barcodeFile.tsv phaseOutputPrefix
+      ./sgcocaller phase possorted_bam.bam hetSNPs.vcf.gz barcodeFile.tsv phaseOutputPrefix
+      ./sgcocaller xo --threads 4 possorted_bam.bam phased_hetSNPs.vcf.gz barcodeFile.tsv ./percell/ccsnp
+      ./sgcocaller sxo snp_phase.txt phaseOutputPrefix barcodeFile.tsv ./percell/ccsnp
+      
 ```
 ### Run for single-cell DNA sequenced gametes with donor haplotype known 
 
